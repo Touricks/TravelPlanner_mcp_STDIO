@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -9,9 +11,11 @@ from typing import Any, Optional
 from mcp_server.config import (
     MAX_ATTEMPTS_PER_STAGE,
     MAX_REGRESSIONS_PER_TRIP,
+    SESSION_TTL_HOURS,
+    SESSIONS_DIR,
     STAGES,
     atomic_write_json,
-    trip_dir,
+    session_dir,
 )
 
 log = logging.getLogger(__name__)
@@ -20,7 +24,8 @@ log = logging.getLogger(__name__)
 class WorkflowState:
     """Manages workflow state machine with atomic persistence."""
 
-    def __init__(self, trip_id: str) -> None:
+    def __init__(self, trip_id: str, session_id: Optional[str] = None) -> None:
+        self.session_id = session_id or uuid.uuid4().hex[:12]
         self.trip_id = trip_id
         self.current_stage: str = STAGES[0]
         self.completed_stages: list[str] = []
@@ -28,14 +33,14 @@ class WorkflowState:
         self.prior_errors: dict[str, list[dict]] = {}
         self.notion_urls: dict[str, str] = {}
         self.regression_count: int = 0
-        self.status: str = "active"  # active | blocked | complete | cancelled
+        self.status: str = "active"
         self.block_reason: Optional[str] = None
         self.created_at: str = datetime.now(timezone.utc).isoformat()
         self.updated_at: str = self.created_at
 
     @property
     def state_path(self) -> Path:
-        return trip_dir(self.trip_id) / "workflow-state.json"
+        return session_dir(self.session_id) / "workflow-state.json"
 
     @property
     def published_databases(self) -> set[str]:
@@ -43,6 +48,7 @@ class WorkflowState:
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "session_id": self.session_id,
             "trip_id": self.trip_id,
             "current_stage": self.current_stage,
             "completed_stages": self.completed_stages,
@@ -58,7 +64,7 @@ class WorkflowState:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> WorkflowState:
-        state = cls(data["trip_id"])
+        state = cls(data["trip_id"], data.get("session_id"))
         state.current_stage = data["current_stage"]
         state.completed_stages = data.get("completed_stages", [])
         state.attempt_counts = data.get("attempt_counts", {})
@@ -76,16 +82,22 @@ class WorkflowState:
         atomic_write_json(self.state_path, self.to_dict())
 
     @classmethod
-    def load(cls, trip_id: str) -> WorkflowState:
-        path = trip_dir(trip_id) / "workflow-state.json"
+    def load(cls, session_id: str) -> WorkflowState:
+        """Load by session_id (primary) or trip_id (backward compat lookup)."""
+        path = session_dir(session_id) / "workflow-state.json"
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
+            return cls.from_dict(data)
         except FileNotFoundError:
-            raise FileNotFoundError(f"No workflow state for trip: {trip_id}")
-        return cls.from_dict(data)
+            pass
+
+        resolved = _resolve_trip_id_to_session(session_id)
+        if resolved:
+            return cls.load(resolved)
+
+        raise FileNotFoundError(f"No workflow state for session: {session_id}")
 
     def advance(self) -> Optional[str]:
-        """Advance to next stage. Returns new stage or None if complete."""
         if self.current_stage not in STAGES:
             return None
         idx = STAGES.index(self.current_stage)
@@ -98,14 +110,11 @@ class WorkflowState:
         return None
 
     def complete_stage(self, stage: str) -> None:
-        """Mark a stage as complete and advance. Use this instead of
-        directly manipulating current_stage/completed_stages."""
         self.current_stage = stage
         self.advance()
         self.save()
 
     def record_attempt(self, stage: str, errors: Optional[list[dict]] = None) -> int:
-        """Record an attempt. Returns current attempt count."""
         count = self.attempt_counts.get(stage, 0) + 1
         self.attempt_counts[stage] = count
         if errors:
@@ -116,13 +125,9 @@ class WorkflowState:
         return self.attempt_counts.get(stage, 0) >= MAX_ATTEMPTS_PER_STAGE
 
     def regress_to(self, target_stage: str, violations: list[dict]) -> dict:
-        """Regress from REVIEW to an earlier stage. Returns remediation payload."""
         if self.regression_count >= MAX_REGRESSIONS_PER_TRIP:
             self.block(f"Max regressions ({MAX_REGRESSIONS_PER_TRIP}) exceeded")
-            return {
-                "status": "blocked",
-                "reason": self.block_reason,
-            }
+            return {"status": "blocked", "reason": self.block_reason}
 
         self.regression_count += 1
         target_idx = STAGES.index(target_stage)
@@ -153,7 +158,6 @@ class WorkflowState:
         self.save()
 
     def unblock(self, action: str) -> None:
-        """Unblock a trip. action: retry | skip | override."""
         if action == "retry":
             self.attempt_counts[self.current_stage] = 0
         elif action in ("skip", "override"):
@@ -171,21 +175,34 @@ class WorkflowState:
         self.notion_urls[db_name] = url
 
 
-def list_all_trips() -> list[dict]:
-    """Scan assets/data/ for workflow-state.json files."""
-    from mcp_server.config import DATA_DIR
+def _resolve_trip_id_to_session(trip_id: str) -> Optional[str]:
+    """Scan sessions/ to find a session with matching trip_id (backward compat)."""
+    if not SESSIONS_DIR.exists():
+        return None
+    for d in SESSIONS_DIR.iterdir():
+        state_file = d / "workflow-state.json"
+        try:
+            data = json.loads(state_file.read_text(encoding="utf-8"))
+            if data.get("trip_id") == trip_id:
+                return data.get("session_id", d.name)
+        except (FileNotFoundError, json.JSONDecodeError):
+            continue
+    return None
 
-    trips = []
+
+def list_all_sessions() -> list[dict]:
+    sessions = []
     try:
-        entries = sorted(DATA_DIR.iterdir())
+        entries = sorted(SESSIONS_DIR.iterdir())
     except FileNotFoundError:
-        return trips
+        return sessions
     for d in entries:
         state_file = d / "workflow-state.json"
         try:
             data = json.loads(state_file.read_text(encoding="utf-8"))
-            trips.append({
-                "trip_id": data.get("trip_id", d.name),
+            sessions.append({
+                "session_id": data.get("session_id", d.name),
+                "trip_id": data.get("trip_id"),
                 "current_stage": data.get("current_stage"),
                 "status": data.get("status", "unknown"),
                 "created_at": data.get("created_at"),
@@ -193,7 +210,35 @@ def list_all_trips() -> list[dict]:
             })
         except (FileNotFoundError, json.JSONDecodeError):
             continue
-    return trips
+    return sessions
+
+
+def cleanup_stale_sessions(max_age_hours: int = SESSION_TTL_HOURS) -> int:
+    """Remove session directories older than max_age_hours that are not active/complete."""
+    if not SESSIONS_DIR.exists():
+        return 0
+    now = datetime.now(timezone.utc)
+    removed = 0
+    for d in list(SESSIONS_DIR.iterdir()):
+        state_file = d / "workflow-state.json"
+        try:
+            data = json.loads(state_file.read_text(encoding="utf-8"))
+            if data.get("status") in ("complete", "active"):
+                continue
+            updated = data.get("updated_at", "")
+            if updated:
+                age = now - datetime.fromisoformat(updated)
+                if age.total_seconds() < max_age_hours * 3600:
+                    continue
+        except (FileNotFoundError, json.JSONDecodeError, ValueError):
+            pass
+        try:
+            shutil.rmtree(d)
+            removed += 1
+            log.info("Cleaned up stale session: %s", d.name)
+        except OSError:
+            log.warning("Failed to clean up session: %s", d.name)
+    return removed
 
 
 def _build_remediation_hint(violations: list[dict]) -> str:

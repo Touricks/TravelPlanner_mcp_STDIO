@@ -9,4 +9,5 @@ reference/
 /prototype/
 *.tmp
 *.db
+sessions/
 .worktrees/

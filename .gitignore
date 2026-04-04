@@ -1,14 +1,57 @@
+# Python
 __pycache__/
 *.pyc
-.DS_Store
+*.pyo
+
+# Virtual environments
 .venv-mcp/
+.venv*/
+
+# Testing
 .pytest_cache/
-.compaction-state.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# MCP server (user-specific absolute paths)
 .mcp.json
+
+# Claude Code internals
+.compaction-state.json
 .sentinel/
+.worktrees/
+
+# User profile (personal preferences, built during profile_collection)
+config/profile.yaml
+
+# Session data (runtime-generated, not source)
+sessions/
+
+# Databases (rebuilt from schema.sql)
+*.db
+
+# Dev logs and progress tracking
+docs/logs/
+docs/progress/
+docs/sessions/
+progress.yaml
+
+# Implementation plans (dev-only)
+docs/plan/
+
+# Prototype archive (legacy, large binaries)
+docs/archive/prototype/
+docs/archive/prototype_docs/
+
+# Binary assets that shouldn't be in git
+*.png
+*.pdf
+
+# Misc
+*.tmp
+*.bak
+*.log
+.env
 reference/
 /prototype/
-*.tmp
-*.db
-sessions/
-.worktrees/

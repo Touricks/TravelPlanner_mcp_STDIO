@@ -17,48 +17,12 @@ This project uses the following tools. Skills not listed here are global noise �
 - **Input constraints:** Needs completed work context from current session
 - **Failure behavior:** Manually append entry to progress.yaml
 
-#### sentinel:call-codex
-- **Purpose in this project:** Stage 5 Codex second-opinion review on generated artifacts
-- **Can do:** Send YAML/JSON artifacts to Codex for structured review, parse results
-- **Cannot do:** Modify artifacts directly; only produces review reports
-- **Input constraints:** Requires Codex CLI installed and accessible
-- **Chain pattern:** Stage 3/4 output → codex review → review-report.json
-- **Failure behavior:** Fall back to Claude self-review with adversarial prompt
-
-#### sentinel:routing
-- **Purpose in this project:** Tool routing report generation
-- **Can do:** Scan global skills, classify relevance, produce routing report
-- **Cannot do:** Move or install skills
-- **Input constraints:** Needs CLAUDE.md and ARCHITECTURE.md
-- **Failure behavior:** Manually maintain docs/tool-routing-report.md
-
-#### sentinel:boundary
-- **Purpose in this project:** Generate tool boundary declarations from approved routing
-- **Can do:** Create/update this file from routing report
-- **Cannot do:** Approve routing decisions
-- **Input constraints:** docs/tool-routing-report.md must have status: approved
-- **Failure behavior:** Manually edit this file
-
-#### sentinel:sentinel-loop
-- **Purpose in this project:** Iterative development loop for pipeline stages
-- **Can do:** Propose next task from progress.yaml, build structured dev loop
-- **Cannot do:** Execute code autonomously without developer confirmation
-- **Input constraints:** Needs progress.yaml and PRD.md
-- **Failure behavior:** Manually pick next task from progress.yaml next_steps
-
 #### sentinel:sentinel-export
 - **Purpose in this project:** Export compliance docs and session reports
 - **Can do:** Render project docs to md/pdf/docx, lint for AI patterns
 - **Cannot do:** Publish to external systems
 - **Input constraints:** Needs docs/ directory with content
 - **Failure behavior:** Manual export
-
-#### sentinel:start
-- **Purpose in this project:** Project bootstrap (already executed)
-- **Can do:** Generate PRD.md, ARCHITECTURE.md, CLAUDE.md via guided interview
-- **Cannot do:** Implement code
-- **Input constraints:** Interactive user session
-- **Failure behavior:** Manually create bootstrap docs
 
 #### codex:rescue
 - **Purpose in this project:** Codex-assisted review, diagnosis, and search enrichment (Stage 2/4/5)
@@ -68,14 +32,7 @@ This project uses the following tools. Skills not listed here are global noise �
 - **Chain pattern:** Generate artifact → codex:rescue review → parse feedback → iterate
 - **Failure behavior:** Use Claude self-review or skip enrichment step
 
-#### codex:setup
-- **Purpose in this project:** Verify Codex CLI readiness before pipeline stages that need it
-- **Can do:** Check installation, connectivity, model availability
-- **Cannot do:** Install Codex CLI
-- **Input constraints:** None
-- **Failure behavior:** Tell developer to install Codex CLI manually
-
-#### codex:review
+#### codex:adversaril-review
 - **Purpose in this project:** Stage 5 structured review of generated YAML/JSON artifacts
 - **Can do:** Review itinerary/restaurant/hotel artifacts for quality, consistency, feasibility
 - **Cannot do:** Modify source artifacts
@@ -152,7 +109,7 @@ This project uses the following tools. Skills not listed here are global noise �
 
 #### Codex CLI
 - **Purpose in this project:** Soft-judgment review of generated artifacts
-- **Invocation:** Via codex:rescue or sentinel:call-codex skills
+- **Invocation:** Via codex:rescue or  codex:adversaril-review
 - **Constraints:** Async execution; pipeline waits for completion. Output is advisory, not authoritative.
 
 #### Prototype CLI (trip command)

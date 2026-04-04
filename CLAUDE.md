@@ -24,6 +24,7 @@ Requirements: see PRD.md
 - Use `from __future__ import annotations` and `Optional[X]` instead of `X | None` — system Python is 3.9
 - Time overlap checker must suppress parent-child relationships via parent_item_index; nested activities are intentional overlaps, not violations
 - Codex CLI invocations must use `codex exec --skip-git-repo-check` for non-interactive mode. Parse stdout by extracting the last valid JSON array — codex duplicates output with session metadata.
+- `update_profile` uses `load_profile_safe` (returns `{}` on missing/invalid) + `validate_profile_structure` (structure-only, no required section check) to support incremental profile building during `profile_collection` stage
 
 ## MCP Server
 

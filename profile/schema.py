@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from pathlib import Path
 from copy import deepcopy
+from typing import Optional
 
 import yaml
 
@@ -18,6 +21,14 @@ def load_profile(path: Path) -> dict:
         raise ValueError(f"Profile must be a YAML mapping, got {type(data).__name__}")
     validate_profile(data)
     return data
+
+
+def load_profile_safe(path: Path) -> dict:
+    """Load profile, returning empty dict if missing or invalid."""
+    try:
+        return load_profile(path)
+    except (FileNotFoundError, ValueError, yaml.YAMLError):
+        return {}
 
 
 def save_profile(path: Path, data: dict) -> None:
@@ -59,6 +70,93 @@ def validate_profile(data: dict) -> None:
         tier = data["accommodation"].get("budget_tier")
         if tier is not None and tier not in VALID_BUDGET_TIERS:
             raise ValueError(f"Invalid accommodation.budget_tier: {tier}")
+
+
+def validate_profile_structure(data: dict) -> None:
+    """Validate structural constraints on present sections only.
+
+    Unlike validate_profile, this does NOT check for required sections.
+    Used during incremental profile building (profile_collection stage).
+    """
+    if "travel_pace" in data:
+        pace = data["travel_pace"]
+        pois = pace.get("pois_per_day")
+        if pois is not None:
+            if not (isinstance(pois, list) and len(pois) == 2):
+                raise ValueError("travel_pace.pois_per_day must be a [min, max] list")
+            if pois[0] > pois[1]:
+                raise ValueError("pois_per_day min must be <= max")
+
+    if "wishlist" in data:
+        for i, item in enumerate(data["wishlist"]):
+            if "name_en" not in item:
+                raise ValueError(f"wishlist[{i}] missing name_en")
+            pri = item.get("priority", "flexible")
+            if pri not in VALID_PRIORITIES:
+                raise ValueError(f"wishlist[{i}] invalid priority: {pri}")
+
+    if "dietary" in data:
+        tier = data["dietary"].get("budget_tier")
+        if tier is not None and tier not in VALID_BUDGET_TIERS:
+            raise ValueError(f"Invalid dietary.budget_tier: {tier}")
+
+    if "accommodation" in data:
+        tier = data["accommodation"].get("budget_tier")
+        if tier is not None and tier not in VALID_BUDGET_TIERS:
+            raise ValueError(f"Invalid accommodation.budget_tier: {tier}")
+
+
+def check_profile_completeness(data: dict) -> dict:
+    """Check profile readiness for trip planning. Aligned with validate_profile."""
+    missing_required: list[str] = []
+    missing_optional: list[str] = []
+    structural_issues: list[str] = []
+
+    # Required sections — must exist AND be non-empty
+    for section in REQUIRED_SECTIONS:
+        if section not in data or not data[section]:
+            missing_required.append(section)
+
+    # Structural validation on present sections
+    if "travel_pace" in data:
+        pace = data["travel_pace"]
+        pois = pace.get("pois_per_day")
+        if pois is not None:
+            if not (isinstance(pois, list) and len(pois) == 2 and pois[0] <= pois[1]):
+                structural_issues.append(
+                    "travel_pace.pois_per_day: must be [min, max] with min <= max"
+                )
+
+    if "wishlist" in data:
+        for i, item in enumerate(data["wishlist"]):
+            if "name_en" not in item:
+                structural_issues.append(f"wishlist[{i}]: missing name_en")
+            pri = item.get("priority", "flexible")
+            if pri not in VALID_PRIORITIES:
+                structural_issues.append(f"wishlist[{i}]: invalid priority {pri}")
+
+    if "dietary" in data:
+        tier = data["dietary"].get("budget_tier")
+        if tier is not None and tier not in VALID_BUDGET_TIERS:
+            structural_issues.append(f"dietary.budget_tier: invalid tier {tier}")
+
+    if "accommodation" in data:
+        tier = data["accommodation"].get("budget_tier")
+        if tier is not None and tier not in VALID_BUDGET_TIERS:
+            structural_issues.append(f"accommodation.budget_tier: invalid tier {tier}")
+
+    # Optional but useful sections
+    optional = {"travel_pace", "wishlist", "dietary", "accommodation"}
+    for section in optional:
+        if section not in data or not data[section]:
+            missing_optional.append(section)
+
+    return {
+        "complete": len(missing_required) == 0 and len(structural_issues) == 0,
+        "missing_required": missing_required,
+        "missing_optional": missing_optional,
+        "structural_issues": structural_issues,
+    }
 
 
 def deep_merge(base: dict, overlay: dict) -> dict:

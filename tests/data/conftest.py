@@ -9,12 +9,13 @@ from pathlib import Path
 
 import pytest
 
-# Add seed directory and parent to import path for modules under test
-SEED_DIR = Path(__file__).resolve().parent.parent / "seed"
-SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schema.sql"
-DB_PARENT = Path(__file__).resolve().parent.parent  # assets/database/
+# Project root = three levels up from tests/data/conftest.py
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+TRIPDB_DIR = PROJECT_ROOT / "tripdb"
+SEED_DIR = TRIPDB_DIR / "seed"
+SCHEMA_PATH = TRIPDB_DIR / "schema.sql"
 sys.path.insert(0, str(SEED_DIR))
-sys.path.insert(0, str(DB_PARENT))
+sys.path.insert(0, str(TRIPDB_DIR))
 
 
 @pytest.fixture(scope="session")
@@ -94,6 +95,21 @@ def sample_md_content() -> str:
 | Monterey Bay Aquarium | Yes -- timed entry tickets required | $59.95/adult | 2-3 weeks ahead |
 | Griffith Observatory | No -- free admission, no tickets | Free (parking $10/hr) | No booking |
 """
+
+
+@pytest.fixture
+def session_trip(empty_db):
+    """DB with trip + session for bridge tests."""
+    conn = empty_db
+    conn.execute(
+        "INSERT INTO trips (id, destination, start_date, end_date) "
+        "VALUES ('test-trip', 'Test City', '2026-04-17', '2026-04-25')"
+    )
+    conn.execute(
+        "INSERT INTO sessions (id, trip_id) VALUES ('abc123def456', 'test-trip')"
+    )
+    conn.commit()
+    yield conn, "test-trip", "abc123def456"
 
 
 @pytest.fixture

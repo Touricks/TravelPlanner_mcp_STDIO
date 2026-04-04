@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Import risks, todos, and reservations from the Notion Markdown export.
 
 Parses:

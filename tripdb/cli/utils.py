@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Service layer for the trip CLI.
 
 All database writes and shared logic live here. Click handlers in trip.py

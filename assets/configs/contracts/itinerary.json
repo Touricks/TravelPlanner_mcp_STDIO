@@ -19,6 +19,7 @@
               "type": "object",
               "properties": {
                 "poi_ref": { "type": "integer" },
+                "candidate_id": { "type": "string", "description": "Stable ref to poi-candidates candidate_id" },
                 "name_en": { "type": "string" },
                 "name_cn": { "type": "string" },
                 "style": { "type": "string" },

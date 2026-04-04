@@ -4,6 +4,7 @@ __pycache__/
 .venv-mcp/
 .pytest_cache/
 .compaction-state.json
+.mcp.json
 .sentinel/
 reference/
 /prototype/

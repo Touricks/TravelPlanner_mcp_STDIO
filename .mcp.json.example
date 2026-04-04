@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "travel-planner": {
+      "command": ".venv-mcp/bin/python3",
+      "args": ["-m", "mcp_server.server"],
+      "cwd": "/ABSOLUTE/PATH/TO/proj-travel_planner",
+      "env": {
+        "PYTHONPATH": "/ABSOLUTE/PATH/TO/proj-travel_planner"
+      }
+    }
+  }
+}

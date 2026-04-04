@@ -1,0 +1,3 @@
+# Dev/test dependencies for the MCP server venv
+-r requirements-mcp.txt
+pytest>=9.0

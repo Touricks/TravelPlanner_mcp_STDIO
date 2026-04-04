@@ -6,7 +6,11 @@ Requirements: see PRD.md
 ## Rules
 
 - Pipeline stages produce YAML artifacts with validated schemas; never pass unvalidated data between stages
-- `tripdb/` is the canonical SQLite data layer; CLI (`python3 -m tripdb.cli.trip`) is the ONLY write interface; Python imports from tripdb are READ-ONLY (queries via views)
+- `tripdb/` is the canonical SQLite data layer; CLI (`python3 -m tripdb.cli.trip`) is the interactive write interface; `tripdb/bridge.py` is the programmatic write interface for MCP artifact→SQLite import (uses same audit/transaction patterns; actor='mcp_bridge')
+- `tripdb/queries.py` is the session-scoped read layer; MCP server code uses this for session-filtered reads, not raw SQL with ad-hoc WHERE clauses
+- `session_places` junction table tracks which session discovered which place; `places` stays global (no session_id column)
+- `bridge_sync` table tracks JSON→SQLite sync state per artifact; bridge failures are recorded and surfaced, never silently swallowed
+- SQLite is a materialized projection of JSON artifacts; JSON is canonical; DB is rebuildable from artifacts via `rebuild_session()`
 - Guardrail rules in assets/configs/guardrails.yaml are the single source of truth for scheduling constraints
 - Hard constraint violations block pipeline progression; soft constraint violations generate warnings for Codex review
 - Profile updates are additive: new fields merge into profile.yaml without overwriting existing values

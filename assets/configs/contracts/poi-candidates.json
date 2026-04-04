@@ -9,6 +9,7 @@
       "items": {
         "type": "object",
         "properties": {
+          "candidate_id": { "type": "string", "description": "Stable ID: sha256(name_en|address)[:12]" },
           "name_en": { "type": "string" },
           "name_cn": { "type": "string" },
           "style": {

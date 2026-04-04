@@ -23,6 +23,7 @@ class TestSchemaCreation:
         expected = {
             "trips", "places", "itinerary_items", "hotels",
             "risks", "reservations", "todos", "audit_log",
+            "sessions", "session_places", "bridge_sync",
         }
         assert tables == expected
 

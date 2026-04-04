@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Import Notion CSV export into SQLite places + itinerary_items tables.
 
 Reads the _all.csv (46 rows) and cross-references pois.yaml for source attribution.

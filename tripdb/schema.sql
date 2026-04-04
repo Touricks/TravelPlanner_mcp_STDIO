@@ -1,7 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════
--- travel.db — Agent-first travel planner backend (v3)
--- Created: 2026-03-21
+-- travel.db — Agent-first travel planner backend (v4)
+-- Created: 2026-03-21     Updated: 2026-04-04
 -- Reviewed by: Codex (GPT-5.4)
+-- v4: session isolation + MCP artifact bridge (feat4)
 -- ═══════════════════════════════════════════════════════════════
 PRAGMA journal_mode=WAL;
 PRAGMA foreign_keys=ON;
@@ -75,6 +76,7 @@ CREATE TABLE itinerary_items (
                     || '-' || substr('89ab', abs(random()) % 4 + 1, 1)
                     || substr(hex(randomblob(2)),2) || '-' || hex(randomblob(6)))),
   trip_id         TEXT NOT NULL REFERENCES trips(id),
+  session_id      TEXT REFERENCES sessions(id),               -- v4: MCP session provenance
   place_id        INTEGER NOT NULL REFERENCES places(id),
   date            TEXT NOT NULL,
   time_start      TEXT,
@@ -115,6 +117,7 @@ CREATE TABLE hotels (
                     || '-' || substr('89ab', abs(random()) % 4 + 1, 1)
                     || substr(hex(randomblob(2)),2) || '-' || hex(randomblob(6)))),
   trip_id         TEXT NOT NULL REFERENCES trips(id),
+  session_id      TEXT REFERENCES sessions(id),               -- v4: MCP session provenance
   city            TEXT NOT NULL,
   hotel_name      TEXT,
   address         TEXT,
@@ -152,6 +155,7 @@ CREATE TABLE risks (
                     || '-' || substr('89ab', abs(random()) % 4 + 1, 1)
                     || substr(hex(randomblob(2)),2) || '-' || hex(randomblob(6)))),
   trip_id         TEXT NOT NULL REFERENCES trips(id),
+  session_id      TEXT REFERENCES sessions(id),               -- v4: MCP session provenance
   category        TEXT NOT NULL CHECK(category IN
                     ('vehicle','road','tickets','weather','health','logistics','gear')),
   risk            TEXT NOT NULL,
@@ -239,6 +243,7 @@ CREATE TABLE todos (
 CREATE TABLE audit_log (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   trip_id         TEXT,
+  session_id      TEXT,                                       -- v4: MCP session provenance
   action          TEXT NOT NULL,
   target_type     TEXT NOT NULL,
   target_uuid     TEXT,
@@ -247,6 +252,68 @@ CREATE TABLE audit_log (
   actor           TEXT DEFAULT 'agent',
   created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
+
+-- ───────────────────────────────────────────────────────────────
+-- Sessions — MCP workflow session tracking (v4)
+-- N:1 relationship to trips; multiple sessions can plan the same trip.
+-- ───────────────────────────────────────────────────────────────
+CREATE TABLE sessions (
+  id              TEXT PRIMARY KEY,                            -- 12-char hex from MCP
+  trip_id         TEXT NOT NULL REFERENCES trips(id),
+  status          TEXT DEFAULT 'active'
+                  CHECK(status IN ('active','complete','cancelled')),
+  source          TEXT DEFAULT 'mcp'
+                  CHECK(source IN ('mcp','cli','migration')),
+  created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  completed_at    TEXT
+);
+
+-- ───────────────────────────────────────────────────────────────
+-- Session Places — provenance: which session discovered which place (v4)
+-- Separates place identity (places table) from session membership.
+-- ───────────────────────────────────────────────────────────────
+CREATE TABLE session_places (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id      TEXT NOT NULL REFERENCES sessions(id),
+  place_id        INTEGER NOT NULL REFERENCES places(id),
+  candidate_id    TEXT NOT NULL,                               -- sha256(name_en|address)[:12]
+  artifact_type   TEXT DEFAULT 'poi_search'
+                  CHECK(artifact_type IN ('poi_search','restaurants')),
+  source_rank     INTEGER,                                     -- position in artifact (informational)
+  discovered_at   TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE(session_id, place_id, artifact_type)
+);
+
+-- ───────────────────────────────────────────────────────────────
+-- Bridge Sync — tracks JSON artifact → SQLite sync state (v4)
+-- SQLite is a materialized projection of JSON artifacts.
+-- ───────────────────────────────────────────────────────────────
+CREATE TABLE bridge_sync (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id      TEXT NOT NULL REFERENCES sessions(id),
+  artifact_type   TEXT NOT NULL,                               -- poi_search, scheduling, etc.
+  artifact_hash   TEXT,                                        -- SHA256[:16] for change detection
+  sync_state      TEXT DEFAULT 'pending'
+                  CHECK(sync_state IN ('pending','synced','failed','stale')),
+  rows_imported   INTEGER DEFAULT 0,
+  last_error      TEXT,
+  synced_at       TEXT,
+  created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE(session_id, artifact_type)
+);
+
+-- ═══════════════════════════════════════════════════════════════
+-- Indexes (v4: session isolation)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE INDEX idx_itinerary_session ON itinerary_items(session_id)
+  WHERE session_id IS NOT NULL;
+CREATE INDEX idx_hotels_session ON hotels(session_id)
+  WHERE session_id IS NOT NULL;
+CREATE INDEX idx_risks_session ON risks(session_id)
+  WHERE session_id IS NOT NULL;
+CREATE INDEX idx_session_places_candidate ON session_places(candidate_id);
+CREATE INDEX idx_session_places_session ON session_places(session_id);
 
 -- ═══════════════════════════════════════════════════════════════
 -- Triggers
@@ -360,7 +427,8 @@ SELECT
   ii.arrival_buffer_minutes,
   ii.sync_status,
   ii.notion_page_id,
-  ii.trip_id
+  ii.trip_id,
+  ii.session_id
 FROM itinerary_items ii
 JOIN places p ON ii.place_id = p.id
 JOIN trips t ON ii.trip_id = t.id
@@ -401,7 +469,8 @@ SELECT
   h.booking_url,
   h.notes,
   h.sync_status,
-  h.trip_id
+  h.trip_id,
+  h.session_id
 FROM hotels h
 JOIN trips t ON h.trip_id = t.id
 WHERE h.deleted_at IS NULL

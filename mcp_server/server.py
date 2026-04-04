@@ -39,6 +39,44 @@ class SearchError(Exception):
 
 
 # ---------------------------------------------------------------------------
+# Bridge helpers (JSON artifact → SQLite sync)
+# ---------------------------------------------------------------------------
+
+def _get_db_connection():
+    """Get SQLite connection for bridge operations. Returns None if DB absent."""
+    import sqlite3 as _sqlite3
+    db_path = config.DB_PATH
+    if not db_path.exists():
+        log.warning("SQLite DB not found at %s, skipping bridge", db_path)
+        return None
+    conn = _sqlite3.connect(str(db_path))
+    conn.row_factory = _sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def _bridge_call(fn, *args, **kwargs) -> Optional[dict]:
+    """Call a bridge function with DB connection management.
+
+    Returns bridge result dict or None if DB unavailable.
+    Bridge failures are logged and recorded in bridge_sync, not swallowed.
+    """
+    conn = _get_db_connection()
+    if not conn:
+        return None
+    try:
+        result = fn(conn, *args, **kwargs)
+        if result and result.get("status") == "failed":
+            log.error("Bridge sync failed: %s", result.get("error"))
+        return result
+    except Exception as e:
+        log.error("Bridge exception: %s", e, exc_info=True)
+        return {"status": "failed", "error": str(e)}
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -375,6 +413,11 @@ def start_trip(
         log.warning("Failed to load profile for trip %s", trip_id, exc_info=True)
         profile_summary = {}
 
+    # Bridge: ensure trip + session exist in SQLite
+    from tripdb.bridge import ensure_trip as _ensure_trip, register_session as _register
+    _bridge_call(_ensure_trip, trip_id, destination, start_date, end_date)
+    _bridge_call(_register, state.session_id, trip_id)
+
     return {
         "session_id": state.session_id,
         "trip_id": trip_id,
@@ -426,8 +469,17 @@ def submit_artifact(
     artifact_store.save_artifact(session_id, stage, data)
     state.complete_stage(stage)
 
+    # Bridge: import scheduling artifact to SQLite
+    bridge_status = None
+    if stage == "scheduling":
+        from tripdb.bridge import import_itinerary as _import_itin
+        cmap = artifact_store.load_artifact(session_id, "candidate-map") or {}
+        br = _bridge_call(_import_itin, session_id, state.trip_id, data, cmap)
+        bridge_status = br.get("status") if br else None
+
     return {
         "status": "accepted",
+        "bridge_status": bridge_status,
         "next_action": _build_action(state),
     }
 
@@ -458,11 +510,18 @@ async def search_pois(session_id: str) -> dict[str, Any]:
     artifact_store.save_artifact(session_id, "poi_search", result)
     state.complete_stage("poi_search")
 
+    # Bridge: import POI candidates to SQLite
+    from tripdb.bridge import import_pois as _import_pois
+    bridge_result = _bridge_call(_import_pois, state.session_id, state.trip_id, result)
+    if bridge_result:
+        artifact_store.save_artifact(session_id, "candidate-map", bridge_result.get("candidate_map", {}))
+
     candidates = result.get("candidates", [])
     return {
         "status": "complete",
         "candidates_count": len(candidates),
         "sample": [c.get("name_en", "") for c in candidates[:5]],
+        "bridge_status": bridge_result.get("status") if bridge_result else None,
         "next_action": _build_action(state),
     }
 
@@ -489,10 +548,17 @@ async def search_restaurants(session_id: str) -> dict[str, Any]:
     artifact_store.save_artifact(session_id, "restaurants", result)
     state.complete_stage("restaurants")
 
+    # Bridge: import restaurants to SQLite
+    from tripdb.bridge import import_restaurants as _import_rest
+    prefs = _load_trip_prefs(state.trip_id)
+    br = _bridge_call(_import_rest, state.session_id, state.trip_id, result,
+                      prefs.get("start_date", ""))
+
     recs = result.get("recommendations", [])
     return {
         "status": "complete",
         "recommendations_count": len(recs),
+        "bridge_status": br.get("status") if br else None,
         "next_action": _build_action(state),
     }
 
@@ -519,10 +585,15 @@ async def search_hotels(session_id: str) -> dict[str, Any]:
     artifact_store.save_artifact(session_id, "hotels", result)
     state.complete_stage("hotels")
 
+    # Bridge: import hotels to SQLite
+    from tripdb.bridge import import_hotels as _import_hotels
+    br = _bridge_call(_import_hotels, state.session_id, state.trip_id, result)
+
     recs = result.get("recommendations", [])
     return {
         "status": "complete",
         "recommendations_count": len(recs),
+        "bridge_status": br.get("status") if br else None,
         "next_action": _build_action(state),
     }
 
@@ -540,6 +611,10 @@ def run_review(
 
     review_report = validation.run_full_review(session_id, skip_codex)
     artifact_store.save_artifact(session_id, "review", review_report)
+
+    # Bridge: import review risks to SQLite
+    from tripdb.bridge import import_review_risks as _import_risks
+    _bridge_call(_import_risks, state.session_id, state.trip_id, review_report)
 
     hard_violations = [
         item for item in review_report.get("items", [])

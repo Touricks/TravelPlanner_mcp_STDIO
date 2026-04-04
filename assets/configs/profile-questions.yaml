@@ -1,0 +1,84 @@
+# Structured profile questions — Layer 2
+# Used by profile_collection stage to identify missing profile fields.
+# Each question maps to a profile field path for structured extraction.
+
+questions:
+  # --- Required sections ---
+  - id: identity_role
+    field: identity.role
+    question_en: "What do you do? (e.g., software engineer, designer, student)"
+    question_cn: "你的职业是什么？"
+    required: true
+
+  - id: identity_language
+    field: identity.language
+    question_en: "What languages do you speak?"
+    question_cn: "你说什么语言？"
+    required: true
+
+  - id: interests_nature
+    field: travel_interests.nature
+    question_en: "Do you enjoy nature activities? What kinds? (coastlines, hiking, wildlife, etc.)"
+    question_cn: "你喜欢自然活动吗？什么类型的？"
+    required: true
+
+  - id: interests_culture
+    field: travel_interests.culture
+    question_en: "Are you interested in local culture, history, or traditions?"
+    question_cn: "你对当地文化、历史或传统感兴趣吗？"
+    required: true
+
+  - id: interests_food
+    field: travel_interests.food
+    question_en: "How important is food exploration in your travels? Any cuisine preferences?"
+    question_cn: "美食探索对你的旅行有多重要？有什么偏好的菜系吗？"
+    required: true
+
+  - id: interests_tech
+    field: travel_interests.tech
+    question_en: "Are you interested in tech or science-related sites?"
+    question_cn: "你对科技或科学相关的景点感兴趣吗？"
+    required: false
+
+  - id: travel_style_schedule
+    field: travel_style.daily_schedule
+    question_en: "What's your preferred daily schedule? (e.g., 8am start, back by 9pm)"
+    question_cn: "你偏好的每日时间安排？（如早上8点出发，晚上9点回）"
+    required: true
+
+  - id: travel_style_pacing
+    field: travel_style.pacing
+    question_en: "Do you prefer a relaxed, balanced, or packed travel pace?"
+    question_cn: "你喜欢轻松、平衡还是紧凑的旅行节奏？"
+    required: true
+
+  # --- Optional but useful ---
+  - id: travel_pace
+    field: travel_pace.pois_per_day
+    question_en: "How many places would you like to visit per day? (e.g., 2-3 relaxed, 4-5 moderate, 6+ packed)"
+    question_cn: "你每天想去多少个地方？（如2-3个轻松，4-5个适中，6+紧凑）"
+    required: false
+
+  - id: dietary_preferences
+    field: dietary.preferences
+    question_en: "Any food preferences? (e.g., local cuisine, vegetarian, specific cuisines)"
+    question_cn: "有什么饮食偏好吗？（如当地特色、素食、特定菜系）"
+    required: false
+
+  - id: dietary_restrictions
+    field: dietary.restrictions
+    question_en: "Any dietary restrictions or allergies?"
+    question_cn: "有饮食限制或过敏吗？"
+    required: false
+
+  - id: accommodation_budget
+    field: accommodation.budget_tier
+    question_en: "What's your accommodation budget preference? (budget / moderate / premium)"
+    question_cn: "住宿预算偏好？（经济 / 中等 / 高档）"
+    required: false
+
+  - id: accommodation_preferences
+    field: accommodation.preferences
+    question_en: "Any accommodation preferences? (e.g., central location, parking, quiet area)"
+    question_cn: "有住宿偏好吗？（如市中心、有停车场、安静）"
+    required: false

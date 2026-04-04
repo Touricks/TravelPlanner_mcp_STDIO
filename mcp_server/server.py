@@ -56,6 +56,10 @@ def _build_action(state: WorkflowState) -> dict[str, Any]:
             "max_retries_exceeded": state.is_blocked(stage),
         }
 
+    # Profile collection — interactive stage
+    if stage == "profile_collection":
+        return _build_profile_collection_action(state)
+
     # For search stages, tell the agent to call the corresponding search tool
     search_tool_names = {"poi_search": "search_pois", "restaurants": "search_restaurants", "hotels": "search_hotels"}
     if stage in config.SEARCH_STAGES:
@@ -124,10 +128,10 @@ def _load_trip_prefs(trip_id: str) -> dict:
 
 
 def _load_merged_profile_from_prefs(trip_id: str, prefs: dict) -> dict:
-    from profile.schema import load_profile
+    from profile.schema import load_profile_safe
     from profile.trip_prefs import merge_with_profile
 
-    profile = load_profile(config.PROFILE_PATH)
+    profile = load_profile_safe(config.PROFILE_PATH)
     if prefs:
         profile = merge_with_profile(profile, prefs)
     return profile
@@ -145,6 +149,80 @@ def _determine_regression_target(violations: list[dict]) -> str:
     if rules & {"hotel_check_in", "hotel_check_out"}:
         return "hotels"
     return "scheduling"
+
+
+# ---------------------------------------------------------------------------
+# Profile collection helpers
+# ---------------------------------------------------------------------------
+
+_UNSET = object()
+
+
+def _build_profile_collection_action(state: WorkflowState) -> dict[str, Any]:
+    """Build action for the profile_collection stage."""
+    import yaml
+    from profile.schema import check_profile_completeness, load_profile_safe
+
+    profile = load_profile_safe(config.PROFILE_PATH)
+    completeness = check_profile_completeness(profile)
+
+    # Load Layer 2 questions, filter out already-answered ones
+    all_questions = config.load_profile_questions()
+    unanswered = _filter_answered_questions(all_questions, profile)
+
+    # Load Layer 3 destination questions
+    prefs = _load_trip_prefs(state.trip_id)
+    destination = prefs.get("destination", state.trip_id)
+    dest_questions = config.load_destination_questions(destination)
+    dest_unanswered = _filter_answered_questions(dest_questions, profile)
+
+    # Build prompt from template
+    profile_yaml = yaml.dump(profile, allow_unicode=True, default_flow_style=False) if profile else "No profile yet."
+    instructions = ""
+    try:
+        from pipeline.stages.stage_prompts import load_prompt
+        instructions = load_prompt("stage-1-profile-collection", {
+            "destination": destination,
+            "profile_state": profile_yaml,
+            "missing_fields": json.dumps(completeness, indent=2),
+            "structured_questions": json.dumps(unanswered, indent=2, ensure_ascii=False),
+            "destination_questions": json.dumps(dest_unanswered, indent=2, ensure_ascii=False),
+        })
+    except Exception as e:
+        log.warning("Profile collection prompt loading failed: %s", e)
+        instructions = "Collect the traveler's profile information through conversation."
+
+    return {
+        "status": "user_interaction_required",
+        "stage": "profile_collection",
+        "instructions": instructions,
+        "current_profile": profile,
+        "completeness": completeness,
+        "questions": unanswered,
+        "destination_questions": dest_unanswered,
+    }
+
+
+def _filter_answered_questions(questions: list[dict], profile: dict) -> list[dict]:
+    """Filter out questions whose target field already exists in the profile.
+
+    Uses a sentinel to distinguish 'field absent' from 'field has falsey value'.
+    Empty lists, empty strings, 0, False are all valid answers.
+    """
+    unanswered = []
+    for q in questions:
+        field_path = q.get("field", "")
+        parts = field_path.split(".")
+        val: Any = profile
+        for part in parts:
+            if isinstance(val, dict):
+                val = val.get(part, _UNSET)
+            else:
+                val = _UNSET
+                break
+        if val is _UNSET:
+            unanswered.append(q)
+    return unanswered
 
 
 # ---------------------------------------------------------------------------
@@ -258,6 +336,7 @@ def start_trip(
     end_date: str,
     overrides: Optional[dict] = None,
 ) -> dict[str, Any]:
+    from profile.schema import check_profile_completeness, load_profile_safe
     from profile.trip_prefs import create_trip_prefs, save_trip_prefs
 
     cleanup_stale_sessions()
@@ -271,17 +350,26 @@ def start_trip(
     save_trip_prefs(td / "trip-prefs.yaml", prefs)
 
     state = WorkflowState(trip_id)
+
+    # Conditional profile_collection insertion
+    profile = load_profile_safe(config.PROFILE_PATH)
+    completeness = check_profile_completeness(profile)
+    if not completeness["complete"]:
+        state.stages = ["profile_collection"] + list(config.STAGES)
+        state.current_stage = "profile_collection"
+
     state.save()
 
     # Also save trip prefs in session dir for self-contained access
     save_trip_prefs(config.session_dir(state.session_id) / "trip-prefs.yaml", prefs)
 
+    # Build profile summary from merged profile (safe — won't crash)
     try:
-        profile = _load_merged_profile(trip_id)
+        merged = _load_merged_profile(trip_id)
         profile_summary = {
-            k: profile.get(k)
+            k: merged.get(k)
             for k in ("identity", "travel_interests", "travel_style", "travel_pace")
-            if k in profile
+            if k in merged
         }
     except Exception:
         log.warning("Failed to load profile for trip %s", trip_id, exc_info=True)
@@ -290,6 +378,7 @@ def start_trip(
     return {
         "session_id": state.session_id,
         "trip_id": trip_id,
+        "profile_complete": completeness["complete"],
         "profile_summary": profile_summary,
         "first_action": _build_action(state),
     }
@@ -538,13 +627,20 @@ def get_workflow_status(session_id: str) -> dict[str, Any]:
     }
 
 
-@mcp.tool(description="Update traveler profile (additive deep merge).")
+@mcp.tool(description="Update traveler profile (additive deep merge). Safe for incremental building.")
 def update_profile(updates: dict) -> dict[str, Any]:
-    from profile.schema import deep_merge, load_profile, save_profile, validate_profile
+    from profile.schema import (
+        deep_merge,
+        load_profile_safe,
+        save_profile,
+        validate_profile_structure,
+    )
 
-    profile = load_profile(config.PROFILE_PATH)
+    profile = load_profile_safe(config.PROFILE_PATH)
     merged = deep_merge(profile, updates)
-    validate_profile(merged)
+    # Only validate structure of present sections (not required section presence),
+    # so incremental profile building during profile_collection doesn't fail.
+    validate_profile_structure(merged)
     save_profile(config.PROFILE_PATH, merged)
 
     return {
@@ -554,6 +650,39 @@ def update_profile(updates: dict) -> dict[str, Any]:
             for k in ("identity", "travel_interests", "travel_style", "travel_pace")
             if k in merged
         },
+    }
+
+
+@mcp.tool(description="Signal that profile collection is complete. Server validates profile completeness before advancing.")
+def complete_profile_collection(session_id: str) -> dict[str, Any]:
+    from profile.schema import check_profile_completeness, load_profile_safe
+
+    state = WorkflowState.load(session_id)
+
+    if state.current_stage != "profile_collection":
+        return {
+            "status": "error",
+            "reason": f"Current stage is {state.current_stage}, not profile_collection",
+        }
+
+    profile = load_profile_safe(config.PROFILE_PATH)
+    completeness = check_profile_completeness(profile)
+
+    if not completeness["complete"]:
+        return {
+            "status": "incomplete",
+            "completeness": completeness,
+            "hint": "Continue asking about: " + ", ".join(
+                completeness["missing_required"] + completeness["structural_issues"]
+            ),
+        }
+
+    state.complete_stage("profile_collection")
+
+    return {
+        "status": "accepted",
+        "completeness": completeness,
+        "next_action": _build_action(state),
     }
 
 

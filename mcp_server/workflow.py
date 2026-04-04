@@ -27,7 +27,8 @@ class WorkflowState:
     def __init__(self, trip_id: str, session_id: Optional[str] = None) -> None:
         self.session_id = session_id or uuid.uuid4().hex[:12]
         self.trip_id = trip_id
-        self.current_stage: str = STAGES[0]
+        self.stages: list[str] = list(STAGES)
+        self.current_stage: str = self.stages[0]
         self.completed_stages: list[str] = []
         self.attempt_counts: dict[str, int] = {}
         self.prior_errors: dict[str, list[dict]] = {}
@@ -50,6 +51,7 @@ class WorkflowState:
         return {
             "session_id": self.session_id,
             "trip_id": self.trip_id,
+            "stages": self.stages,
             "current_stage": self.current_stage,
             "completed_stages": self.completed_stages,
             "attempt_counts": self.attempt_counts,
@@ -65,6 +67,8 @@ class WorkflowState:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> WorkflowState:
         state = cls(data["trip_id"], data.get("session_id"))
+        # Restore instance-level stages; fall back to default for legacy sessions
+        state.stages = data.get("stages", list(STAGES))
         state.current_stage = data["current_stage"]
         state.completed_stages = data.get("completed_stages", [])
         state.attempt_counts = data.get("attempt_counts", {})
@@ -75,6 +79,18 @@ class WorkflowState:
         state.block_reason = data.get("block_reason")
         state.created_at = data.get("created_at", "")
         state.updated_at = data.get("updated_at", "")
+
+        # Normalization: ensure current_stage exists in stages
+        if state.current_stage not in state.stages:
+            original = state.current_stage
+            state.current_stage = state.stages[0]
+            log.warning(
+                "Normalized current_stage for session %s: '%s' not in stages list, reset to '%s'",
+                state.session_id, original, state.current_stage,
+            )
+
+        # Normalize completed_stages to only include known stages
+        state.completed_stages = [s for s in state.completed_stages if s in state.stages]
         return state
 
     def save(self) -> None:
@@ -98,13 +114,13 @@ class WorkflowState:
         raise FileNotFoundError(f"No workflow state for session: {session_id}")
 
     def advance(self) -> Optional[str]:
-        if self.current_stage not in STAGES:
+        if self.current_stage not in self.stages:
             return None
-        idx = STAGES.index(self.current_stage)
+        idx = self.stages.index(self.current_stage)
         if self.current_stage not in self.completed_stages:
             self.completed_stages.append(self.current_stage)
-        if idx + 1 < len(STAGES):
-            self.current_stage = STAGES[idx + 1]
+        if idx + 1 < len(self.stages):
+            self.current_stage = self.stages[idx + 1]
             return self.current_stage
         self.status = "complete"
         return None
@@ -129,12 +145,17 @@ class WorkflowState:
             self.block(f"Max regressions ({MAX_REGRESSIONS_PER_TRIP}) exceeded")
             return {"status": "blocked", "reason": self.block_reason}
 
-        self.regression_count += 1
-        target_idx = STAGES.index(target_stage)
-        review_idx = STAGES.index("review")
+        # profile_collection is never a regression target (no artifact)
+        if target_stage == "profile_collection":
+            target_stage = self.stages[self.stages.index("profile_collection") + 1] \
+                if "profile_collection" in self.stages else self.stages[0]
 
-        stale = STAGES[target_idx:review_idx]
-        valid = [s for s in STAGES[:target_idx] if s in self.completed_stages]
+        self.regression_count += 1
+        target_idx = self.stages.index(target_stage)
+        review_idx = self.stages.index("review")
+
+        stale = self.stages[target_idx:review_idx]
+        valid = [s for s in self.stages[:target_idx] if s in self.completed_stages]
 
         self.completed_stages = [s for s in self.completed_stages if s not in stale]
         self.attempt_counts[target_stage] = 0

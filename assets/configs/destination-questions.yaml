@@ -1,0 +1,85 @@
+# Destination-aware supplemental questions — Layer 3
+# Matched by keyword against the trip destination string.
+#
+# Rules:
+#   1. All region keywords are matched against destination (case-insensitive)
+#   2. Multiple region matches: questions are merged (deduplicated by id)
+#   3. Zero matches: _fallback questions are used
+
+_fallback:
+  questions:
+    - id: generic_transport
+      field: travel_style.transport_preference
+      question_en: "How do you prefer to get around? (public transit, driving, walking, mix)"
+      question_cn: "你偏好什么交通方式？（公共交通、自驾、步行、混合）"
+
+    - id: generic_budget
+      field: accommodation.budget_tier
+      question_en: "What's your overall budget level? (budget / moderate / premium)"
+      question_cn: "整体预算水平？（经济 / 中等 / 高档）"
+
+regions:
+  japan:
+    keywords: ["japan", "tokyo", "kyoto", "osaka", "hokkaido", "okinawa", "nara", "hiroshima", "fukuoka"]
+    questions:
+      - id: japan_onsen
+        field: travel_interests.onsen
+        question_en: "Are you comfortable with Japanese onsen (hot spring) bathing customs?"
+        question_cn: "你对日本温泉（公共浴场）的习惯接受吗？"
+
+      - id: japan_temple_pace
+        field: travel_style.temple_tolerance
+        question_en: "How many temples/shrines per day feels right? (Some visitors get 'templed out')"
+        question_cn: "每天参观多少座寺庙/神社合适？（有些人会'审美疲劳'）"
+
+  us_west_coast:
+    keywords: ["california", "san francisco", "los angeles", "seattle", "portland", "big sur", "yosemite", "napa", "monterey"]
+    questions:
+      - id: us_driving
+        field: travel_style.driving_willingness
+        question_en: "Are you comfortable with long drives (2-4 hours between stops)?"
+        question_cn: "你能接受长途驾车（每段2-4小时）吗？"
+
+      - id: us_hiking
+        field: travel_interests.hiking_level
+        question_en: "What's your hiking comfort level? (easy walks / moderate trails / strenuous hikes)"
+        question_cn: "你的徒步能力如何？（轻松步行 / 中等步道 / 高强度徒步）"
+
+  beach:
+    keywords: ["beach", "island", "bali", "hawaii", "maldives", "cancun", "phuket", "caribbean", "okinawa"]
+    questions:
+      - id: beach_water
+        field: travel_interests.water_activities
+        question_en: "What water activities interest you? (swimming, snorkeling, diving, surfing, none)"
+        question_cn: "你对什么水上活动感兴趣？（游泳、浮潜、潜水、冲浪、无）"
+
+      - id: beach_sun
+        field: travel_style.sun_tolerance
+        question_en: "How much time in direct sun is comfortable for you?"
+        question_cn: "你能在阳光下待多久？"
+
+  europe:
+    keywords: ["europe", "paris", "london", "rome", "barcelona", "berlin", "amsterdam", "vienna", "prague", "lisbon", "florence"]
+    questions:
+      - id: europe_museums
+        field: travel_interests.museum_tolerance
+        question_en: "How do you feel about art museums? (love them / one or two / skip)"
+        question_cn: "你对艺术博物馆的态度？（喜欢 / 去一两个 / 跳过）"
+
+      - id: europe_walking
+        field: travel_style.walking_tolerance_km
+        question_en: "European cities involve lots of walking. How many km/day is comfortable?"
+        question_cn: "欧洲城市需要大量步行，你每天能走多少公里？"
+
+  southeast_asia:
+    keywords: ["thailand", "vietnam", "cambodia", "laos", "myanmar", "singapore", "malaysia", "indonesia", "philippines"]
+    questions:
+      - id: sea_spice
+        field: dietary.spice_tolerance
+        question_en: "How spicy can you handle your food? (mild / medium / hot / extra hot)"
+        question_cn: "你能吃多辣？（微辣 / 中辣 / 辣 / 特辣）"
+
+      - id: sea_street_food
+        field: dietary.street_food
+        question_en: "Are you comfortable eating street food?"
+        question_cn: "你能接受路边摊/街头小吃吗？"

@@ -22,6 +22,8 @@ DATA_DIR = ASSETS_DIR / "data"
 PROMPTS_DIR = ASSETS_DIR / "prompts"
 SESSIONS_DIR = PROJECT_ROOT / "sessions"
 PROFILE_PATH = PROJECT_ROOT / "config" / "profile.yaml"
+PROFILE_QUESTIONS_PATH = CONFIGS_DIR / "profile-questions.yaml"
+DESTINATION_QUESTIONS_PATH = CONFIGS_DIR / "destination-questions.yaml"
 
 # Standardized artifact names (agents must use these exact names)
 ARTIFACT_NAMES = {
@@ -48,6 +50,7 @@ SEARCH_STAGES = {"poi_search", "restaurants", "hotels"}
 
 # Stage → prompt template file mapping
 STAGE_PROMPTS = {
+    "profile_collection": "stage-1-profile-collection",
     "poi_search": "stage-2-poi-search",
     "scheduling": "stage-3-scheduling",
     "restaurants": "stage-4a-restaurants",
@@ -105,6 +108,52 @@ def atomic_write_json(path: Path, data: Any) -> None:
     except BaseException:
         Path(tmp_path).unlink(missing_ok=True)
         raise
+
+
+# ---------------------------------------------------------------------------
+# Profile question loaders
+# ---------------------------------------------------------------------------
+
+
+def load_profile_questions() -> list[dict]:
+    """Load Layer 2 structured profile questions."""
+    try:
+        data = yaml.safe_load(PROFILE_QUESTIONS_PATH.read_text(encoding="utf-8"))
+        return data.get("questions", [])
+    except FileNotFoundError:
+        return []
+
+
+def load_destination_questions(destination: str) -> list[dict]:
+    """Load Layer 3 destination-aware questions by keyword matching.
+
+    Multi-match: if destination matches multiple regions, questions are merged
+    (deduplicated by id). Zero matches: returns _fallback questions.
+    """
+    try:
+        data = yaml.safe_load(DESTINATION_QUESTIONS_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return []
+
+    dest_lower = destination.lower()
+    matched: list[dict] = []
+    seen_ids: set[str] = set()
+
+    for region_id, region in data.get("regions", {}).items():
+        keywords = region.get("keywords", [])
+        if any(kw in dest_lower for kw in keywords):
+            for q in region.get("questions", []):
+                qid = q.get("id", "")
+                if qid not in seen_ids:
+                    matched.append(q)
+                    seen_ids.add(qid)
+
+    # Zero matches → use fallback
+    if not matched:
+        fallback = data.get("_fallback", {})
+        matched = fallback.get("questions", [])
+
+    return matched
 
 
 # ---------------------------------------------------------------------------

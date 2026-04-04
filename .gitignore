@@ -31,6 +31,12 @@ sessions/
 # Databases (rebuilt from schema.sql)
 *.db
 
+# Generated trip data (personal trip artifacts)
+assets/data/
+
+# Seed source data (personal trip exports)
+tripdb/seed/sources/
+
 # Dev logs and progress tracking
 docs/logs/
 docs/progress/

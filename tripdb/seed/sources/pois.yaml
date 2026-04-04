@@ -1,0 +1,440 @@
+# SF Trip POI Master List (v2 — revised schedule, reviewed by Codex + Gemini)
+# Sources: teammate (from POI_suggested.json), tripmate (Claude recommendations)
+# Decision status: pending = not yet decided, confirmed = will visit, rejected = skip
+# Style: nature | tech | culture | food | landmark
+
+trip:
+  destination: San Francisco & California Coast
+  dates: 2026-04-17 to 2026-04-25
+  daily_schedule: "08:30 departure, 22:00 return"
+  version: 2
+  reviewers: [codex, gemini]
+
+pois:
+
+  # ── Apr 17 (Fri) — SF Arrival Evening ──────────────────────
+
+  - id: 1
+    name_en: Golden Gate Bridge / Battery Spencer Viewpoint
+    name_cn: 金门大桥 / Battery Spencer观景台
+    date: "2026-04-17"
+    time: "18:30-19:30"
+    duration: 1h
+    style: nature
+    reason: "SF的标志性地标，Battery Spencer是北侧最佳观景点，日落时分金门大桥在暖光下格外壮观。到达当晚即可打卡"
+    address: "Conzelman Rd, Sausalito, CA 94965"
+    source: tripmate
+    decision: pending
+    note: "需要航班在17:00前落地才有足够时间（SFO→Battery Spencer约30min）"
+
+  # ── Apr 18 (Sat) — Highway 1 Day 1: SF → Carmel (~120mi) ──
+
+  - id: 2
+    name_en: Half Moon Bay
+    name_cn: 半月湾
+    date: "2026-04-18"
+    time: "09:00-10:00"
+    duration: 1h
+    style: nature
+    reason: "海岸线小镇，适合早晨散步。如果走海岸线路线（而非先去Stanford），这是第一站"
+    address: "Half Moon Bay, CA 94019"
+    source: teammate
+    decision: pending
+
+  - id: 3
+    name_en: Computer History Museum
+    name_cn: 计算机历史博物馆
+    date: "2026-04-18"
+    time: "10:00-12:00"
+    duration: 2h
+    style: tech
+    reason: "世界上最大的计算机历史收藏，从算盘到AI。紧邻Stanford，可以一起安排。周三-周日 10am-5pm开放"
+    address: "1401 N Shoreline Blvd, Mountain View, CA 94043"
+    source: tripmate
+    decision: pending
+
+  - id: 4
+    name_en: Stanford University
+    name_cn: 斯坦福大学
+    date: "2026-04-18"
+    time: "12:00-13:30"
+    duration: 1.5h
+    style: tech
+    reason: "硅谷的精神源头，Main Quad和Memorial Church值得一看。Hoover Tower可以俯瞰整个校园。距Computer History Museum仅5分钟车程"
+    address: "450 Serra Mall, Stanford, CA 94305"
+    source: teammate
+    decision: pending
+
+  - id: 5
+    name_en: Monterey Bay Aquarium
+    name_cn: 蒙特雷湾水族馆
+    date: "2026-04-18"
+    time: "14:30-17:00"
+    duration: 2.5h
+    style: nature
+    reason: "世界级水族馆，以海獭展和巨型海藻森林闻名。需提前买票。Cannery Row本身也是Steinbeck小说背景地"
+    address: "886 Cannery Row, Monterey, CA 93940"
+    source: tripmate
+    decision: pending
+
+  - id: 6
+    name_en: Monterey
+    name_cn: 蒙特雷
+    date: "2026-04-18"
+    time: "14:30-17:00"
+    duration: 2.5h
+    style: culture
+    reason: "Cannery Row渔人街区、Steinbeck小说背景地。与Aquarium在同一区域，可以一并游览"
+    address: "Cannery Row, Monterey, CA 93940"
+    source: teammate
+    decision: pending
+
+  - id: 7
+    name_en: Carmel-by-the-Sea
+    name_cn: 卡梅尔海
+    date: "2026-04-18"
+    time: "17:30-20:00"
+    duration: 2.5h
+    style: culture
+    reason: "艺术家小镇，欧式建筑风格，无门牌号的街道。前市长是Clint Eastwood。适合晚餐后散步，是当晚住宿点"
+    address: "Ocean Ave, Carmel-by-the-Sea, CA 93921"
+    source: teammate
+    decision: pending
+
+  # ── Apr 19 (Sun) — Highway 1 Day 2: Carmel → Cambria (~90mi) ──
+
+  - id: 8
+    name_en: Point Lobos State Natural Reserve
+    name_cn: 罗伯斯角州立自然保护区
+    date: "2026-04-19"
+    time: "08:30-10:00"
+    duration: 1.5h
+    style: nature
+    reason: "被称为'加州州立公园系统的皇冠明珠'。海獭、海狮、海鸟栖息地。China Cove的碧蓝海水令人难忘"
+    address: "62 CA-1, Carmel-by-the-Sea, CA 93923"
+    source: tripmate
+    decision: pending
+
+  - id: 9
+    name_en: Big Sur (Bixby Bridge + Pfeiffer Beach)
+    name_cn: 大瑟尔（比克斯比桥 + 菲佛海滩）
+    date: "2026-04-19"
+    time: "10:30-14:00"
+    duration: 3.5h
+    style: nature
+    reason: "一号公路的精华段。Bixby Bridge是最经典打卡点；Pfeiffer Beach的紫色沙滩和Keyhole Arch岩洞。公路本身就是景点"
+    address: "Highway 1, Big Sur, CA 93920"
+    source: teammate
+    decision: pending
+    note: "出发前check Caltrans路况——Big Sur近年有滑坡封路历史"
+
+  - id: 10
+    name_en: McWay Falls
+    name_cn: 麦克韦瀑布
+    date: "2026-04-19"
+    time: "14:30-15:00"
+    duration: 30min
+    style: nature
+    reason: "80英尺高的瀑布直落入太平洋海滩——加州唯一的'潮汐瀑布'。位于Julia Pfeiffer Burns State Park内"
+    address: "Julia Pfeiffer Burns State Park, Big Sur, CA 93920"
+    source: tripmate
+    decision: pending
+
+  - id: 11
+    name_en: Elephant Seal Rookery
+    name_cn: 象海豹栖息地
+    date: "2026-04-19"
+    time: "16:00-16:45"
+    duration: 45min
+    style: nature
+    reason: "免费！Piedras Blancas海岸数百只象海豹聚集，场面非常震撼。4月份可能看到幼崽"
+    address: "Piedras Blancas, Highway 1, San Simeon, CA 93452"
+    source: tripmate
+    decision: pending
+
+  - id: 12
+    name_en: Hearst Castle
+    name_cn: 赫斯特城堡
+    date: "2026-04-19"
+    time: "17:00-19:00"
+    duration: 2h
+    style: culture
+    reason: "报业大亨William Randolph Hearst的私人城堡，Citizen Kane的原型。需提前预约，$30/人起"
+    address: "750 Hearst Castle Rd, San Simeon, CA 93452"
+    source: teammate
+    decision: pending
+
+  # ── Apr 20 (Mon) — Highway 1 Day 3: Cambria → Santa Barbara (~130mi) ──
+  # REVISED: Stop at Santa Barbara, not rush to LA
+
+  - id: 13
+    name_en: Morro Bay & Morro Rock
+    name_cn: 莫罗贝 & 莫罗岩
+    date: "2026-04-20"
+    time: "08:30-09:30"
+    duration: 1h
+    style: nature
+    reason: "576英尺高的火山岩矗立于海湾中央，被原住民视为圣地。清晨海雾中的Morro Rock有一种神秘感"
+    address: "Morro Bay, CA 93442"
+    source: teammate
+    decision: pending
+
+  - id: 14
+    name_en: San Luis Obispo
+    name_cn: 圣路易斯-奥比斯保
+    date: "2026-04-20"
+    time: "10:00-11:00"
+    duration: 1h
+    style: culture
+    reason: "大学城。Bubblegum Alley网红打卡。Downtown有西班牙风格Mission教堂"
+    address: "Downtown San Luis Obispo, CA 93401"
+    source: teammate
+    decision: pending
+
+  - id: 15
+    name_en: Pismo Beach
+    name_cn: 皮斯莫比奇
+    date: "2026-04-20"
+    time: "11:30-12:30"
+    duration: 1h
+    style: nature
+    reason: "经典加州海滩小镇。以蛤蜊杂烩汤(clam chowder)闻名"
+    address: "Pismo Beach, CA 93449"
+    source: teammate
+    decision: pending
+
+  - id: 16
+    name_en: Solvang
+    name_cn: 索尔万
+    date: "2026-04-20"
+    time: "13:00-14:30"
+    duration: 1.5h
+    style: culture
+    reason: "1911年丹麦移民建立的小镇，风车、半木结构建筑、丹麦糕点店。代表了加州多元文化中的北欧面"
+    address: "Mission Dr, Solvang, CA 93463"
+    source: teammate
+    decision: pending
+
+  - id: 17
+    name_en: Santa Barbara
+    name_cn: 圣巴巴拉
+    date: "2026-04-20"
+    time: "15:30-20:00"
+    duration: 4.5h
+    style: culture
+    reason: "'美国的里维埃拉'。统一的西班牙殖民复兴建筑风格。State Street步行街、Stearns Wharf码头。今晚住在这里，不赶路到LA"
+    address: "State Street, Santa Barbara, CA 93101"
+    source: teammate
+    decision: pending
+    note: "住宿点。比原计划多了2.5h享受Santa Barbara的时间"
+
+  # ── Apr 21 (Tue) — Santa Barbara → LA, LA Afternoon/Evening ──
+  # REVISED: Morning drive SB→LA (~2-2.5h with traffic), then full LA day
+
+  - id: 18
+    name_en: Serra Cross
+    name_cn: Serra Cross
+    date: "2026-04-21"
+    time: "09:30-10:00"
+    duration: 30min
+    style: landmark
+    reason: "Grant Park山顶的历史十字架，俯瞰Ventura市区和太平洋。SB→LA路上顺路停靠"
+    address: "Grant Park, Ventura, CA 93001"
+    source: teammate
+    decision: pending
+
+  - id: 19
+    name_en: Santa Monica
+    name_cn: 圣莫尼卡
+    date: "2026-04-21"
+    time: "11:00-12:00"
+    duration: 1h
+    style: culture
+    reason: "Route 66的终点（'End of the Trail'标志在Santa Monica Pier上）。代表美国公路文化的终极浪漫。到达LA前的第一站"
+    address: "Santa Monica Pier, Santa Monica, CA 90401"
+    source: teammate
+    decision: pending
+
+  - id: 20
+    name_en: Griffith Observatory
+    name_cn: 格里菲斯天文台
+    date: "2026-04-21"
+    time: "13:00-15:30"
+    duration: 2.5h
+    style: tech
+    reason: "免费入场！Hollywood Sign全景、天文望远镜、天文展览。自1935年从未收费（创始人遗嘱）。代表LA对科学普及的承诺。周二-周五 noon-10pm开放"
+    address: "2800 E Observatory Rd, Los Angeles, CA 90027"
+    source: tripmate
+    decision: pending
+    note: "Apr 21是周二，正常开放。室内展览noon才开门，建议午后到达"
+
+  - id: 21
+    name_en: Grand Central Market
+    name_cn: 中央大市场
+    date: "2026-04-21"
+    time: "16:00-17:30"
+    duration: 1.5h
+    style: food
+    reason: "自1917年运营的食品市场，30+摊位浓缩LA多元饮食文化。Eggslut和Tacos Tumbras是必吃"
+    address: "317 S Broadway, Los Angeles, CA 90013"
+    source: tripmate
+    decision: pending
+
+  - id: 22
+    name_en: SpaceX Headquarters (exterior)
+    name_cn: SpaceX总部（外观）
+    date: "2026-04-21"
+    time: "18:00-18:30"
+    duration: 30min
+    style: tech
+    reason: "门口展示猎鹰9号助推器。不对公众开放，外部打卡。位于Hawthorne，LA南部"
+    address: "1 Rocket Rd, Hawthorne, CA 90250"
+    source: tripmate
+    decision: pending
+
+  - id: 23
+    name_en: LA Downtown
+    name_cn: 洛杉矶市中心
+    date: "2026-04-21"
+    time: "18:30-21:00"
+    duration: 2.5h
+    style: culture
+    reason: "The Broad免费当代艺术馆、Walt Disney Concert Hall外观（Frank Gehry设计）、Arts District街头艺术"
+    address: "Downtown Los Angeles, CA 90012"
+    source: teammate
+    decision: pending
+
+  # ── Apr 22 (Wed) — LA Morning → Sequoia (arrive ~14:00) ────
+  # Drive: LA → Sequoia Giant Forest ~4.5-5h
+
+  - id: 24
+    name_en: General Sherman Tree & Congress Trail
+    name_cn: 谢尔曼将军树 & 国会小径
+    date: "2026-04-22"
+    time: "14:30-16:30"
+    duration: 2h
+    style: nature
+    reason: "地球上体积最大的树——高275英尺，周长102英尺，约2200年历史。Congress Trail全程2.9mi可以看到更多巨杉群"
+    address: "Giant Forest, Sequoia National Park, CA 93262"
+    source: tripmate
+    decision: pending
+    note: "LA 8:30出发，预计13:00-14:00到达公园（含山路）"
+
+  - id: 25
+    name_en: Moro Rock
+    name_cn: 莫罗岩
+    date: "2026-04-22"
+    time: "17:00-18:00"
+    duration: 1h
+    style: nature
+    reason: "350级花岗岩台阶登顶，360度全景俯瞰Great Western Divide。日落时分最佳。注意恐高"
+    address: "Moro Rock, Sequoia National Park, CA 93262"
+    source: tripmate
+    decision: pending
+
+  # ── Apr 23 (Thu) — Sequoia Full Day ────────────────────────
+
+  - id: 26
+    name_en: Crescent Meadow
+    name_cn: 新月草甸
+    date: "2026-04-23"
+    time: "09:00-10:30"
+    duration: 1.5h
+    style: nature
+    reason: "John Muir称之为'Sierra的宝石'。Crescent & Log Meadows Trail 1.8mi环线，适合野餐"
+    address: "Crescent Meadow, Sequoia National Park, CA 93262"
+    source: tripmate
+    decision: pending
+
+  - id: 27
+    name_en: Tokopah Falls Trail
+    name_cn: 托科帕瀑布步道
+    date: "2026-04-23"
+    time: "11:00-14:00"
+    duration: 3h
+    style: nature
+    reason: "3.6mi往返徒步，春季水量充沛，瀑布壮观。Sequoia公园内最推荐的中等难度步道"
+    address: "Lodgepole Area, Sequoia National Park, CA 93262"
+    source: tripmate
+    decision: pending
+
+  - id: 28
+    name_en: Beetle Rock / Sunset Rock
+    name_cn: 甲虫岩 / 日落岩
+    date: "2026-04-23"
+    time: "17:00-18:30"
+    duration: 1.5h
+    style: nature
+    reason: "从Giant Forest Museum出发的日落观景点。Sunset Rock是公园内最佳日落拍摄地"
+    address: "Giant Forest Museum, Sequoia National Park, CA 93262"
+    source: tripmate
+    decision: pending
+    note: "公园内餐饮极少，自带午餐和水"
+
+  # ── Apr 24 (Fri) — Sequoia AM → Drive to SF (~4.5-5.5h) ───
+  # Transit day. Morning hike, then drive to SF
+
+  - id: 29
+    name_en: Big Trees Trail (morning hike)
+    name_cn: 大树步道（晨间徒步）
+    date: "2026-04-24"
+    time: "08:30-09:30"
+    duration: 1h
+    style: nature
+    reason: "1.3mi环线，围绕Round Meadow。轻松的告别步道，在出发回SF前最后感受一下巨杉"
+    address: "Generals Highway, Sequoia National Park, CA 93262"
+    source: tripmate
+    decision: pending
+    note: "10:00出发回SF，预计15:00-16:00到达（Three Rivers出发更快）"
+
+  # ── Apr 25 (Sat) — SF Full Day, Depart 10pm ───────────────
+  # REVISED: Now a full day instead of just afternoon
+
+  - id: 30
+    name_en: Anthropic HQ
+    name_cn: Anthropic总部
+    date: "2026-04-25"
+    time: "09:30-10:00"
+    duration: 30min
+    style: tech
+    reason: "Claude的创造者！Howard Street上多栋办公楼（500, 505, 300 Howard St），形成AI campus。外部打卡——你正在用Claude规划这趟旅行"
+    address: "500 Howard St, San Francisco, CA 94105"
+    source: tripmate
+    decision: pending
+
+  - id: 31
+    name_en: Chinatown San Francisco
+    name_cn: 旧金山唐人街
+    date: "2026-04-25"
+    time: "10:00-11:30"
+    duration: 1.5h
+    style: culture
+    reason: "北美最古老的唐人街（1848年）。Dragon's Gate牌楼、点心早茶、中药店、传统庙宇。代表SF移民门户城市的历史根基"
+    address: "Grant Avenue, San Francisco, CA 94108"
+    source: tripmate
+    decision: pending
+
+  - id: 32
+    name_en: Mission District
+    name_cn: 教会区
+    date: "2026-04-25"
+    time: "12:00-14:00"
+    duration: 2h
+    style: culture
+    reason: "Clarion Alley壁画群记录拉丁裔社区历史。La Taqueria美国最佳burrito。Mission Dolores是SF最古老建筑（1776年）"
+    address: "Valencia St & 24th St, San Francisco, CA 94110"
+    source: tripmate
+    decision: pending
+
+  - id: 33
+    name_en: Fisherman's Wharf & Pier 39
+    name_cn: 渔人码头 & 39号码头
+    date: "2026-04-25"
+    time: "14:30-16:00"
+    duration: 1.5h
+    style: culture
+    reason: "Pier 39海狮群（1989年地震后自发聚集）。Boudin酸面包碗蛤蜊汤是SF代表性美食"
+    address: "Jefferson St & Taylor St, San Francisco, CA 94133"
+    source: tripmate
+    decision: pending
+    note: "16:30前结束，留充裕时间还车+去SFO（约30min）。航班22:00"

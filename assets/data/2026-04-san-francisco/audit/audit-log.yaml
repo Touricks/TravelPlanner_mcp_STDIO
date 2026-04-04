@@ -1,0 +1,169 @@
+# AI Transparency Audit Log — SF Trip
+# Invisible at action level, visible at decision level
+# External reviewer inputs + orchestrator decision summaries
+
+meta:
+  trip: "2026-04-san-francisco"
+  created: "2026-03-20"
+  current_version: "v2"
+  schema_version: 2   # refined per Codex audit-design review
+
+revisions:
+
+  - version: "v1"
+    date: "2026-03-20"
+    summary: "Initial itinerary: 3-day Highway 1, 1-day LA, 3-day Sequoia, minimal SF time"
+    reviewed_by: []
+    status: superseded
+
+  - version: "v2"
+    date: "2026-03-20"
+    summary: "Rebalanced: Sequoia 3→2 days, Highway 1 Day 3 stops at Santa Barbara, SF gets full day"
+    reviewed_by: [codex, gemini]
+    status: current
+
+    trigger:
+      type: user_challenge
+      detail: "用户质疑Sequoia 3天是否合理，认为前4天(Highway 1+LA)太紧张而后3天(Sequoia)太松，节奏失衡"
+
+    # Orchestrator decision summary — visible at decision level, not action level
+    decision_summary:
+      accepted_inputs:
+        - "Codex: day-of-week correction (Apr 17 = Fri, not Thu)"
+        - "Codex: drive time corrections (LA→Sequoia 4.5-5h, Sequoia→SF 4.5-5.5h)"
+        - "Codex: Griffith Observatory noon opening on weekdays"
+        - "Gemini: tire chains warning for Sequoia"
+        - "Gemini: Big Sur closure risk (Regent's Slide)"
+        - "Gemini: Sequoia lodging booking urgency"
+        - "Both: 2 days sufficient for Sequoia in late April"
+        - "Both: drive time corrections independently confirmed"
+      rejected_inputs: []
+      deferred_inputs:
+        - "Codex: return rental car Apr 24 — under consideration, user not yet decided"
+        - "Gemini: drop rental car early for SF day — same as Codex suggestion, deferred"
+      rationale: "All reviewer corrections were factual or safety-related with no conflicts. Both reviewers independently confirmed the revision is superior. No inputs needed arbitration."
+
+    reviewer_responses:
+      - reviewer: codex
+        model: gpt-5.4
+        date: "2026-03-20"
+        verdict: approved_with_corrections
+        key_points:
+          - "Revision is clearly better than the original"
+          - "Apr 17 is Friday, not Thursday — all day-of-week labels were wrong"
+          - "LA→Sequoia 3.5h is optimistic, budget 4.5-5h (mountain road)"
+          - "Sequoia→SF is 5-6h from Giant Forest, not 4h"
+          - "Griffith Observatory opens at noon on weekdays — plan afternoon"
+          - "Consider returning rental car Apr 24, transit for SF day"
+        dispositions:
+          accepted: [1, 2, 3, 4, 5]
+          deferred: [6]
+        raw_response_path: "reviews/v2-codex-review.md"
+
+      - reviewer: gemini
+        model: gemini
+        date: "2026-03-20"
+        verdict: approved_with_warnings
+        key_points:
+          - "Revision is vastly superior — solves Day 3 burnout"
+          - "Highway 1 Big Sur may have landslide closures — check Caltrans"
+          - "Tire chains may be required in April Sequoia — verify rental agreement"
+          - "LA→Sequoia budget 4.5h + 45-60min mountain road"
+          - "Santa Barbara→LA on Tuesday morning: 2-2.5h, not 1.5h"
+          - "Sequoia lodging limited — book Wuksachi/Three Rivers early"
+        dispositions:
+          accepted: [1, 2, 3, 4, 6]
+          deferred: [5]
+        raw_response_path: "reviews/v2-gemini-review.md"
+
+    changes:
+      - id: 1
+        type: schedule
+        target: "Sequoia National Park"
+        before: "3 days (Apr 22-24)"
+        after: "2 days (Apr 22-23)"
+        rationale: "Kings Canyon Hwy 180 typically opens May, not late April. 2 days sufficient for core Sequoia."
+        source: orchestrator_derived
+        status: accepted
+        consensus: unanimous
+
+      - id: 2
+        type: schedule
+        target: "Highway 1 Day 3 endpoint"
+        before: "Cambria → LA (7 stops, 200mi, rushed)"
+        after: "Cambria → Santa Barbara (5 stops, 130mi, relaxed)"
+        rationale: "Reduce Day 3 stress. Overnight in Santa Barbara instead of rushing to LA."
+        source: orchestrator_derived
+        status: accepted
+        consensus: unanimous
+
+      - id: 3
+        type: schedule
+        target: "SF time allocation"
+        before: "~4 hours total (evening arrival + partial last day)"
+        after: "1.5 days (Apr 24 evening + Apr 25 full day)"
+        rationale: "Freed day from Sequoia reduction redistributed to SF."
+        source: orchestrator_derived
+        status: accepted
+        consensus: unanimous
+
+      - id: 4
+        type: factual_correction
+        target: "Day-of-week mapping for entire trip"
+        before: "Apr 17 = Thursday"
+        after: "Apr 17 = Friday"
+        source: codex
+        status: accepted
+        impact: "Griffith Observatory IS open Apr 21 (Tuesday). No rescheduling needed."
+
+      - id: 5
+        type: logistics
+        target: "Drive time estimates"
+        before: "LA→Sequoia 3.5h, Sequoia→SF 4h, SB→LA 1.5h"
+        after: "LA→Sequoia 4.5-5h, Sequoia→SF 4.5-5.5h, SB→LA 2-2.5h"
+        source: codex
+        status: accepted
+        consensus: unanimous  # gemini independently confirmed
+
+    findings:
+      - source: gemini
+        type: risk_warning
+        severity: high
+        detail: "Sequoia may require tire chains in April — verify rental car agreement allows chain use"
+        status: open
+        related_changes: [1]
+
+      - source: gemini
+        type: risk_warning
+        severity: high
+        detail: "Highway 1 Big Sur has recent landslide closure history (Regent's Slide). Check Caltrans before Apr 18"
+        status: open
+        related_changes: []
+
+      - source: codex
+        type: optimization
+        severity: low
+        detail: "Return rental car Apr 24 evening, use public transit for Apr 25 SF day. Saves $50-80 parking."
+        status: deferred
+        related_changes: [3]
+
+      - source: codex
+        type: scheduling
+        severity: medium
+        detail: "Griffith Observatory opens at noon on weekdays — plan for afternoon/evening visit, not morning"
+        status: incorporated
+        related_changes: []
+
+      - source: codex
+        type: scheduling
+        severity: low
+        detail: "Golden Gate Bridge sunset on arrival only feasible if flight lands before 17:00"
+        status: noted
+        related_changes: []
+
+      - source: gemini
+        type: logistics
+        severity: high
+        detail: "Sequoia lodging (Wuksachi Lodge or Three Rivers) is limited — book well in advance"
+        status: open
+        related_changes: [1]

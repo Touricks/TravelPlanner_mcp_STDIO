@@ -6,7 +6,7 @@ Requirements: see PRD.md
 ## Rules
 
 - Pipeline stages produce YAML artifacts with validated schemas; never pass unvalidated data between stages
-- Prototype SQLite is the canonical data store; this project reads via CLI commands and SQL views, never writes SQL directly
+- `tripdb/` is the canonical SQLite data layer; CLI (`python3 -m tripdb.cli.trip`) is the ONLY write interface; Python imports from tripdb are READ-ONLY (queries via views)
 - Guardrail rules in assets/configs/guardrails.yaml are the single source of truth for scheduling constraints
 - Hard constraint violations block pipeline progression; soft constraint violations generate warnings for Codex review
 - Profile updates are additive: new fields merge into profile.yaml without overwriting existing values

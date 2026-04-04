@@ -16,7 +16,7 @@ CONTRACTS_DIR = CONFIGS_DIR / "contracts"
 GUARDRAILS_PATH = CONFIGS_DIR / "guardrails.yaml"
 DATA_DIR = ASSETS_DIR / "data"
 PROMPTS_DIR = ASSETS_DIR / "prompts"
-PROFILE_PATH = PROJECT_ROOT / "prototype" / "userProfile" / "profile.yaml"
+PROFILE_PATH = PROJECT_ROOT / "config" / "profile.yaml"
 
 # Standardized artifact names (agents must use these exact names)
 ARTIFACT_NAMES = {

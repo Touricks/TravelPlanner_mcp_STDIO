@@ -157,8 +157,8 @@ This project uses the following tools. Skills not listed here are global noise â
 
 #### Prototype CLI (trip command)
 - **Purpose in this project:** Read/write to SQLite data layer
-- **Invocation:** `python3 -m assets.database.cli.trip {command} {args}` from prototype/ directory
-- **Constraints:** This project reads via CLI and SQL views. Never write SQL directly. All 11 commands available (see prototype/.claude/rules/cli-write-layer.md).
+- **Invocation:** `python3 -m tripdb.cli.trip {command} {args}` from project root
+- **Constraints:** This project reads via CLI and SQL views. Never write SQL directly. All 11 commands available (see .claude/rules/cli-write-layer.md).
 
 ## Escape Hatch
 

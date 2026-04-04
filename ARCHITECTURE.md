@@ -113,7 +113,8 @@ Key flags per stage:
 | `assets/configs/contracts/` | JSON Schema files per stage (poi-candidates, itinerary, restaurants, hotels, review-report) |
 | `assets/data/{trip}/` | Generated JSON artifacts per trip |
 | `assets/prompts/` | Codex review prompts, stage-specific system prompts |
-| `prototype/` | Existing data layer (SQLite + CLI), used as-is |
+| `tripdb/` | Canonical SQLite data layer (schema, 11 CLI commands, seed scripts) |
+| `config/` | User profile (`profile.yaml`) |
 
 ## 4. Data Flow
 

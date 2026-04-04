@@ -14,7 +14,7 @@ from output.notion_publisher import build_manifest
 from profile.schema import load_profile, deep_merge
 
 GUARDRAILS_PATH = Path(__file__).resolve().parent.parent / "assets" / "configs" / "guardrails.yaml"
-GOOD_ITINERARY = Path(__file__).resolve().parent / "test_itinerary_good.json"
+GOOD_ITINERARY = Path(__file__).resolve().parent / "fixtures" / "test_itinerary_good.json"
 PROTOTYPE_PROFILE = Path(__file__).resolve().parent.parent / "prototype" / "userProfile" / "profile.yaml"
 
 

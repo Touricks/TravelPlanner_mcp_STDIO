@@ -1,8 +1,8 @@
 When working with travel plan data:
 
-- The canonical data store is SQLite at `assets/database/travel.db` — not pois.yaml, not Notion
-- Schema reference: `design/core/db/schema-reference.md` — read this before writing any SQL
-- Rebuild DB: `python3 assets/database/seed/import_all.py`
+- The canonical data store is SQLite at `tripdb/travel.db` — not pois.yaml, not Notion
+- Schema definition: `tripdb/schema.sql` — read this before writing any SQL
+- Rebuild DB: `python3 -m tripdb.seed.import_all`
 - Use views for reads: `v_full_itinerary`, `v_foods`, `v_attractions`, `v_hotels`, `day_summary`, `open_risks`, `incomplete_todos`
 - Day numbers are computed in views via `julianday(date) - julianday(trip.start_date) + 1` — never stored
 - `duration_minutes` is INTEGER (90, not "1.5h") — use arithmetic directly

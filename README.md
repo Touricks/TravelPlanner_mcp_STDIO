@@ -99,7 +99,7 @@ The agent then regenerates only the stale artifacts and resubmits.
 
 ## MCP Server Reference
 
-### Tools (17)
+### Tools (18)
 
 | Tool | Description |
 |------|-------------|

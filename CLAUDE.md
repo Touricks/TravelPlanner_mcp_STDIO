@@ -29,7 +29,7 @@ Requirements: see PRD.md
 ## MCP Server
 
 - MCP server code lives in `mcp_server/`; runs in `.venv-mcp/` (Python 3.12, FastMCP)
-- Registered in `.mcp.json` as `travel-planner` server; 17 tools, 7 resources, 1 prompt
+- Registered in `.mcp.json` as `travel-planner` server; 18 tools, 7 resources, 1 prompt
 - Workflow state persisted atomically to `sessions/{session_id}/workflow-state.json`
 - Use the `plan_trip` MCP prompt to trigger autonomous trip planning
 - Search tools (`search_pois`, `search_restaurants`, `search_hotels`) run `claude -p` as async subprocess; agent never calls WebSearch directly
@@ -49,4 +49,4 @@ Requirements: see PRD.md
 - MCP workflow: `start_trip` → loop(`get_next_action` → generate → `submit_artifact`) → `run_review` → `build_notion_manifest` → Notion MCP → `complete_trip`
 - Use /progress to log session outcomes
 - Use /codex:rescue for Codex-assisted review and search enrichment
-- Design documents go in docs/; generated trip data goes in assets/data/
+- Design documents go in docs/; session artifacts go in sessions/{session_id}/

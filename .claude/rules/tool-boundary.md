@@ -36,7 +36,7 @@ This project uses the following tools. Skills not listed here are global noise �
 - **Purpose in this project:** Stage 5 structured review of generated YAML/JSON artifacts
 - **Can do:** Review itinerary/restaurant/hotel artifacts for quality, consistency, feasibility
 - **Cannot do:** Modify source artifacts
-- **Input constraints:** Requires artifacts to exist in assets/data/{trip}/
+- **Input constraints:** Requires artifacts to exist in sessions/{session_id}/
 - **Chain pattern:** artifacts → codex:review → review-report.json
 - **Failure behavior:** Fall back to sentinel:call-codex or Claude self-review
 

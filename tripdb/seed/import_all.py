@@ -81,6 +81,9 @@ def validate(conn: sqlite3.Connection):
         print(f"  {time or '??:??'} {name} ({style}, {city})")
 
 
+SOURCES_DIR = Path(__file__).parent / "sources"
+
+
 def main():
     print("=" * 60)
     print("Travel Planner — Database Import")
@@ -90,6 +93,15 @@ def main():
     print("\n[1/4] Creating database...")
     conn = create_database()
     conn.execute("PRAGMA foreign_keys=ON")
+
+    # Guard: skip seed imports if source data is missing (fresh clone)
+    if not SOURCES_DIR.exists():
+        print(f"\nSeed sources not found at {SOURCES_DIR}")
+        print("Created empty database from schema only (no seed data).")
+        print(f"To import data, add source files to {SOURCES_DIR}/")
+        conn.close()
+        print(f"\nDone. Database at: {DB_PATH}")
+        return
 
     # Step 2: Import CSV (trip + places + itinerary_items)
     print("\n[2/4] Importing CSV (places + itinerary items)...")

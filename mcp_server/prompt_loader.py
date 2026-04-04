@@ -5,7 +5,7 @@ from string import Template
 from typing import Optional
 
 
-PROMPTS_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "prompts"
+PROMPTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "prompts"
 
 
 def load_prompt(stage_name: str, context: Optional[dict] = None) -> str:

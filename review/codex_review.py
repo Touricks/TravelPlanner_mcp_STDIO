@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from pipeline.stages.stage_prompts import load_prompt
+from mcp_server.prompt_loader import load_prompt
 
 
 def _extract_last_json_array(text: str) -> list[dict]:

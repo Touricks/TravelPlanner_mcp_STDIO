@@ -76,7 +76,7 @@ def _build_action(state: WorkflowState) -> dict[str, Any]:
     instructions = ""
     context: dict[str, str] = {}
     try:
-        from pipeline.stages.stage_prompts import load_prompt
+        from mcp_server.prompt_loader import load_prompt
 
         if stage == "scheduling":
             context["guardrails"] = config.GUARDRAILS_PATH.read_text(encoding="utf-8")
@@ -180,7 +180,7 @@ def _build_profile_collection_action(state: WorkflowState) -> dict[str, Any]:
     profile_yaml = yaml.dump(profile, allow_unicode=True, default_flow_style=False) if profile else "No profile yet."
     instructions = ""
     try:
-        from pipeline.stages.stage_prompts import load_prompt
+        from mcp_server.prompt_loader import load_prompt
         instructions = load_prompt("stage-1-profile-collection", {
             "destination": destination,
             "profile_state": profile_yaml,

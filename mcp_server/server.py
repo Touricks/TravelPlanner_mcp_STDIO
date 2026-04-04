@@ -550,9 +550,13 @@ async def search_restaurants(session_id: str) -> dict[str, Any]:
 
     # Bridge: import restaurants to SQLite
     from tripdb.bridge import import_restaurants as _import_rest
-    prefs = _load_trip_prefs(state.trip_id)
+    itin = artifact_store.load_artifact(session_id, "itinerary") or {}
+    trip_start = itin.get("start_date", "")
+    if not trip_start:
+        prefs = _load_trip_prefs(state.trip_id)
+        trip_start = prefs.get("start_date", "")
     br = _bridge_call(_import_rest, state.session_id, state.trip_id, result,
-                      prefs.get("start_date", ""))
+                      trip_start)
 
     recs = result.get("recommendations", [])
     return {

@@ -33,7 +33,9 @@ def mcp_env(tmp_path, monkeypatch):
     import mcp_server.config as cfg
 
     # 1. Session artifacts -> temp dir
+    import mcp_server.workflow as _wf
     monkeypatch.setattr(cfg, "SESSIONS_DIR", tmp_path / "sessions")
+    monkeypatch.setattr(_wf, "SESSIONS_DIR", tmp_path / "sessions")
 
     # 2. Trip prefs -> temp dir (start_trip writes trip-prefs.yaml here)
     monkeypatch.setattr(cfg, "DATA_DIR", tmp_path / "data")
@@ -315,3 +317,180 @@ class TestMiamiE2E:
         warnings = check_soft_rules(MIAMI_ITINERARY, guardrails)
         meal_warnings = [w for w in warnings if w["rule"] == "meal_coverage"]
         assert len(meal_warnings) == 5
+
+
+# ── Workspace Session Persistence ──────────────────────────────
+
+
+class TestWorkspaceSession:
+    """E2E tests for workspace-scoped session persistence."""
+
+    def test_start_trip_with_workspace_tag(self, mcp_env, mock_search):
+        from mcp_server.server import start_trip
+        r = start_trip("Miami, FL", "2026-05-01", "2026-05-05", workspace_tag="miami-test")
+        assert "workspace_id" in r
+        assert len(r["workspace_id"]) == 12
+        assert r["workspace_tag"] == "miami-test"
+
+    def test_start_trip_without_workspace_tag(self, mcp_env, mock_search):
+        from mcp_server.server import start_trip
+        r = start_trip("Miami, FL", "2026-05-01", "2026-05-05")
+        assert "workspace_id" in r
+        assert len(r["workspace_id"]) == 12
+        assert r["workspace_tag"] is None
+
+    def test_resume_trip_by_workspace_id(self, mcp_env, mock_search):
+        from mcp_server.server import start_trip, resume_trip
+        r = start_trip("Miami, FL", "2026-05-01", "2026-05-05", workspace_tag="resume-test")
+        ws_id = r["workspace_id"]
+
+        r2 = resume_trip(ws_id)
+        assert r2["status"] == "resumed"
+        assert r2["session_id"] == r["session_id"]
+        assert r2["workspace_id"] == ws_id
+
+    def test_resume_trip_not_found(self, mcp_env, mock_search):
+        from mcp_server.server import resume_trip
+        r = resume_trip("nonexistent_ws")
+        assert r["status"] == "not_found"
+
+    def test_resume_trip_completed_session(self, mcp_env, mock_search):
+        """Completed sessions should not be resumable."""
+        from mcp_server.server import start_trip, resume_trip
+        from mcp_server.workflow import WorkflowState
+        from tripdb.bridge import update_session_status
+        import mcp_server.config as cfg
+
+        r = start_trip("Miami, FL", "2026-05-01", "2026-05-05")
+        ws_id = r["workspace_id"]
+        sid = r["session_id"]
+
+        # Fast-forward to completion
+        state = WorkflowState.load(sid)
+        state.status = "complete"
+        state.save()
+        conn = sqlite3.connect(str(cfg.DB_PATH))
+        update_session_status(conn, sid, "complete")
+        conn.close()
+
+        r2 = resume_trip(ws_id)
+        assert r2["status"] == "not_found"
+
+    def test_resume_trip_blocked_session(self, mcp_env, mock_search):
+        """Blocked sessions should be resumable (blocked is sub-state of active)."""
+        from mcp_server.server import start_trip, resume_trip
+        from mcp_server.workflow import WorkflowState
+
+        r = start_trip("Miami, FL", "2026-05-01", "2026-05-05")
+        ws_id = r["workspace_id"]
+        sid = r["session_id"]
+
+        # Block the session
+        state = WorkflowState.load(sid)
+        state.block("test block reason")
+
+        r2 = resume_trip(ws_id)
+        assert r2["status"] == "resumed"
+        assert r2["workflow_status"] == "blocked"
+
+    def test_resume_trip_stale_db_row(self, mcp_env, mock_search):
+        """DB says active but JSON says complete -> not_found (stale DB)."""
+        from mcp_server.server import start_trip, resume_trip
+        from mcp_server.workflow import WorkflowState
+
+        r = start_trip("Miami, FL", "2026-05-01", "2026-05-05")
+        ws_id = r["workspace_id"]
+        sid = r["session_id"]
+
+        # Make JSON say complete but leave DB as active (simulates stale DB)
+        state = WorkflowState.load(sid)
+        state.status = "complete"
+        state.save()
+        # Don't update DB — this simulates the stale row scenario
+
+        r2 = resume_trip(ws_id)
+        assert r2["status"] == "not_found"
+
+    def test_resume_trip_missing_json(self, mcp_env, mock_search):
+        """DB row exists but workflow-state.json is missing -> orphaned."""
+        from mcp_server.server import start_trip, resume_trip
+        import mcp_server.config as cfg
+        import shutil
+
+        r = start_trip("Miami, FL", "2026-05-01", "2026-05-05")
+        ws_id = r["workspace_id"]
+        sid = r["session_id"]
+
+        # Delete the workflow-state.json file
+        state_file = cfg.session_dir(sid) / "workflow-state.json"
+        state_file.unlink()
+
+        r2 = resume_trip(ws_id)
+        assert r2["status"] == "orphaned"
+
+    def test_resume_latest_single_active(self, mcp_env, mock_search):
+        from mcp_server.server import start_trip, resume_latest
+        r = start_trip("Miami, FL", "2026-05-01", "2026-05-05")
+
+        r2 = resume_latest()
+        assert r2["status"] == "resumed"
+        assert r2["session_id"] == r["session_id"]
+
+    def test_resume_latest_multiple_active(self, mcp_env, mock_search):
+        from mcp_server.server import start_trip, resume_latest
+        start_trip("Miami, FL", "2026-05-01", "2026-05-05")
+        start_trip("NYC", "2026-06-01", "2026-06-05")
+
+        r = resume_latest()
+        assert r["status"] == "multiple_active"
+        assert len(r["sessions"]) == 2
+        # Each session must include workspace_id for user to pick
+        for s in r["sessions"]:
+            assert "workspace_id" in s
+
+    def test_list_trips_workspace_filter(self, mcp_env, mock_search):
+        from mcp_server.server import start_trip, list_trips
+        r1 = start_trip("Miami, FL", "2026-05-01", "2026-05-05", workspace_tag="miami")
+        start_trip("NYC", "2026-06-01", "2026-06-05", workspace_tag="nyc")
+        ws_id = r1["workspace_id"]
+
+        r = list_trips(workspace_id=ws_id)
+        assert len(r["sessions"]) == 1
+        assert r["sessions"][0]["workspace_id"] == ws_id
+
+    def test_cancel_syncs_status_to_db(self, mcp_env, mock_search):
+        import mcp_server.config as cfg
+        from mcp_server.server import start_trip, cancel_trip
+
+        r = start_trip("Miami, FL", "2026-05-01", "2026-05-05")
+        sid = r["session_id"]
+        cancel_trip(sid, "testing")
+
+        conn = sqlite3.connect(str(cfg.DB_PATH))
+        row = conn.execute("SELECT status FROM sessions WHERE id=?", (sid,)).fetchone()
+        conn.close()
+        assert row[0] == "cancelled"
+
+    def test_workspace_id_persisted_in_workflow_state(self, mcp_env, mock_search):
+        from mcp_server.server import start_trip
+        from mcp_server.workflow import WorkflowState
+
+        r = start_trip("Miami, FL", "2026-05-01", "2026-05-05", workspace_tag="persist-test")
+        state = WorkflowState.load(r["session_id"])
+        assert state.workspace_id == r["workspace_id"]
+        assert state.workspace_tag == "persist-test"
+
+    def test_workspace_id_persisted_in_sqlite(self, mcp_env, mock_search):
+        import mcp_server.config as cfg
+        from mcp_server.server import start_trip
+
+        r = start_trip("Miami, FL", "2026-05-01", "2026-05-05", workspace_tag="db-test")
+        conn = sqlite3.connect(str(cfg.DB_PATH))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT workspace_id, workspace_tag FROM sessions WHERE id=?",
+            (r["session_id"],),
+        ).fetchone()
+        conn.close()
+        assert row["workspace_id"] == r["workspace_id"]
+        assert row["workspace_tag"] == "db-test"

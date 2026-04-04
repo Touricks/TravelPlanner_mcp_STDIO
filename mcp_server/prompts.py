@@ -15,10 +15,24 @@ or status="search_failed".
 
 ## Control Loop
 
+### Step 0: Resume Check
+Before starting a new trip, check for an existing active session:
+1. If you have a workspace_id from a previous conversation, call `resume_trip(workspace_id)`.
+2. If you don't have a workspace_id, call `resume_latest()`.
+3. If result.status == "resumed": confirm with the user they want to continue this trip, \
+then set action = result.next_action and jump to Step 2 (Main Loop).
+4. If result.status == "multiple_active": show the list to the user (include \
+destination and workspace_tag for each). Ask which to resume, then call \
+`resume_trip(workspace_id)` with their chosen session's workspace_id.
+5. If result.status == "not_found" or "no_active_sessions": proceed to Step 1.
+6. If result.status == "orphaned": inform user the session state is missing, \
+proceed to Step 1.
+
 ### 1. Initialize
 Extract destination, start_date, end_date from the user request.
-Call `start_trip(destination, start_date, end_date)`.
-Store the returned `session_id`. Use `session_id` for ALL subsequent tool calls.
+Call `start_trip(destination, start_date, end_date, workspace_tag="descriptive-label")`.
+Store the returned `session_id` and `workspace_id`. Use `session_id` for ALL subsequent \
+tool calls. Store `workspace_id` for cross-conversation resumption.
 Check `profile_complete` in the response — if false, first action will be \
 profile_collection.
 
@@ -101,7 +115,7 @@ IF final status is "complete":
 | verify | N/A | N/A | Agent (screenshot) | No |
 
 ### 4. Rules
-- Use `session_id` (NOT trip_id) for all tool calls
+- Use `session_id` (NOT trip_id) for all tool calls. Store `workspace_id` for cross-conversation resumption
 - NEVER use WebSearch directly — always call the search tools
 - During profile_collection: be conversational, ask one topic at a time, confirm understanding
 - During profile_collection: use `update_profile` to save answers, `complete_profile_collection` to finish

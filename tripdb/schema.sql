@@ -262,6 +262,8 @@ CREATE TABLE sessions (
   trip_id         TEXT NOT NULL REFERENCES trips(id),
   status          TEXT DEFAULT 'active'
                   CHECK(status IN ('active','complete','cancelled')),
+  workspace_id    TEXT,
+  workspace_tag   TEXT,
   source          TEXT DEFAULT 'mcp'
                   CHECK(source IN ('mcp','cli','migration')),
   created_at      TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
@@ -314,6 +316,8 @@ CREATE INDEX idx_risks_session ON risks(session_id)
   WHERE session_id IS NOT NULL;
 CREATE INDEX idx_session_places_candidate ON session_places(candidate_id);
 CREATE INDEX idx_session_places_session ON session_places(session_id);
+CREATE INDEX idx_sessions_workspace ON sessions(workspace_id)
+  WHERE workspace_id IS NOT NULL;
 
 -- ═══════════════════════════════════════════════════════════════
 -- Triggers

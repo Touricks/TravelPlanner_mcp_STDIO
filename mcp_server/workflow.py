@@ -24,7 +24,13 @@ log = logging.getLogger(__name__)
 class WorkflowState:
     """Manages workflow state machine with atomic persistence."""
 
-    def __init__(self, trip_id: str, session_id: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        trip_id: str,
+        session_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        workspace_tag: Optional[str] = None,
+    ) -> None:
         self.session_id = session_id or uuid.uuid4().hex[:12]
         self.trip_id = trip_id
         self.stages: list[str] = list(STAGES)
@@ -36,6 +42,8 @@ class WorkflowState:
         self.regression_count: int = 0
         self.status: str = "active"
         self.block_reason: Optional[str] = None
+        self.workspace_id: Optional[str] = workspace_id
+        self.workspace_tag: Optional[str] = workspace_tag
         self.created_at: str = datetime.now(timezone.utc).isoformat()
         self.updated_at: str = self.created_at
 
@@ -60,6 +68,8 @@ class WorkflowState:
             "regression_count": self.regression_count,
             "status": self.status,
             "block_reason": self.block_reason,
+            "workspace_id": self.workspace_id,
+            "workspace_tag": self.workspace_tag,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -77,6 +87,8 @@ class WorkflowState:
         state.regression_count = data.get("regression_count", 0)
         state.status = data.get("status", "active")
         state.block_reason = data.get("block_reason")
+        state.workspace_id = data.get("workspace_id")
+        state.workspace_tag = data.get("workspace_tag")
         state.created_at = data.get("created_at", "")
         state.updated_at = data.get("updated_at", "")
 
@@ -226,6 +238,8 @@ def list_all_sessions() -> list[dict]:
                 "trip_id": data.get("trip_id"),
                 "current_stage": data.get("current_stage"),
                 "status": data.get("status", "unknown"),
+                "workspace_id": data.get("workspace_id"),
+                "workspace_tag": data.get("workspace_tag"),
                 "created_at": data.get("created_at"),
                 "updated_at": data.get("updated_at"),
             })

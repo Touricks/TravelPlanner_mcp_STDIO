@@ -112,12 +112,36 @@ def register_session(
     conn: sqlite3.Connection,
     session_id: str,
     trip_id: str,
+    workspace_id: Optional[str] = None,
+    workspace_tag: Optional[str] = None,
 ) -> None:
     """INSERT OR IGNORE session row."""
     conn.execute(
-        "INSERT OR IGNORE INTO sessions (id, trip_id, source) "
-        "VALUES (?, ?, 'mcp')",
-        (session_id, trip_id),
+        "INSERT OR IGNORE INTO sessions (id, trip_id, source, workspace_id, workspace_tag) "
+        "VALUES (?, ?, 'mcp', ?, ?)",
+        (session_id, trip_id, workspace_id, workspace_tag),
+    )
+    conn.commit()
+
+
+def update_session_status(
+    conn: sqlite3.Connection,
+    session_id: str,
+    status: str,
+) -> None:
+    """Update session status in SQLite. Best-effort sync from WorkflowState.
+
+    Only accepts DB-valid statuses: active, complete, cancelled.
+    Sets completed_at for terminal states.
+    """
+    if status not in ("active", "complete", "cancelled"):
+        return
+    conn.execute(
+        "UPDATE sessions SET status = ?, completed_at = "
+        "CASE WHEN ? IN ('complete', 'cancelled') "
+        "THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE completed_at END "
+        "WHERE id = ?",
+        (status, status, session_id),
     )
     conn.commit()
 

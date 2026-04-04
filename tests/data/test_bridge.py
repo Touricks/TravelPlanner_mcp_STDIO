@@ -621,3 +621,83 @@ class TestBridgeSync:
         import_pois(conn, sid, trip_id, art)
         result = import_pois(conn, sid, trip_id, art)
         assert result["status"] == "skipped"
+
+
+# ── Workspace Session Persistence ──────────────────────────────
+
+
+class TestRegisterSessionWorkspace:
+    """Tests for workspace_id / workspace_tag in register_session."""
+
+    def test_register_session_with_workspace(self, session_trip):
+        conn, trip_id, sid = session_trip
+        register_session(conn, "ws_session_1", trip_id, workspace_id="ws123", workspace_tag="test-trip")
+        row = conn.execute(
+            "SELECT workspace_id, workspace_tag FROM sessions WHERE id='ws_session_1'"
+        ).fetchone()
+        assert row[0] == "ws123"
+        assert row[1] == "test-trip"
+
+    def test_register_session_without_workspace(self, session_trip):
+        conn, trip_id, sid = session_trip
+        register_session(conn, "no_ws_session", trip_id)
+        row = conn.execute(
+            "SELECT workspace_id, workspace_tag FROM sessions WHERE id='no_ws_session'"
+        ).fetchone()
+        assert row[0] is None
+        assert row[1] is None
+
+
+class TestUpdateSessionStatus:
+    """Tests for update_session_status bridge function."""
+
+    def test_updates_to_complete(self, session_trip):
+        from tripdb.bridge import update_session_status
+        conn, trip_id, sid = session_trip
+        update_session_status(conn, sid, "complete")
+        row = conn.execute(
+            "SELECT status, completed_at FROM sessions WHERE id=?", (sid,)
+        ).fetchone()
+        assert row[0] == "complete"
+        assert row[1] is not None  # completed_at set
+
+    def test_updates_to_cancelled(self, session_trip):
+        from tripdb.bridge import update_session_status
+        conn, trip_id, sid = session_trip
+        update_session_status(conn, sid, "cancelled")
+        row = conn.execute("SELECT status FROM sessions WHERE id=?", (sid,)).fetchone()
+        assert row[0] == "cancelled"
+
+    def test_ignores_invalid_status(self, session_trip):
+        from tripdb.bridge import update_session_status
+        conn, trip_id, sid = session_trip
+        update_session_status(conn, sid, "blocked")  # not a DB-valid status
+        row = conn.execute("SELECT status FROM sessions WHERE id=?", (sid,)).fetchone()
+        assert row[0] == "active"  # unchanged
+
+
+class TestFindActiveSessionByWorkspace:
+    """Tests for workspace-based session queries."""
+
+    def test_finds_active_session(self, session_trip):
+        from tripdb.queries import find_active_session_by_workspace
+        conn, trip_id, sid = session_trip
+        register_session(conn, "ws_find_1", trip_id, workspace_id="find_ws_123")
+        result = find_active_session_by_workspace(conn, "find_ws_123")
+        assert result is not None
+        assert result["id"] == "ws_find_1"
+
+    def test_returns_none_for_unknown(self, session_trip):
+        from tripdb.queries import find_active_session_by_workspace
+        conn, trip_id, sid = session_trip
+        result = find_active_session_by_workspace(conn, "nonexistent")
+        assert result is None
+
+    def test_skips_completed_session(self, session_trip):
+        from tripdb.bridge import update_session_status
+        from tripdb.queries import find_active_session_by_workspace
+        conn, trip_id, sid = session_trip
+        register_session(conn, "ws_done_1", trip_id, workspace_id="done_ws")
+        update_session_status(conn, "ws_done_1", "complete")
+        result = find_active_session_by_workspace(conn, "done_ws")
+        assert result is None

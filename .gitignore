@@ -41,10 +41,9 @@ tripdb/seed/sources/
 docs/logs/
 docs/progress/
 docs/sessions/
-progress.yaml
-
-# Implementation plans (dev-only)
 docs/plan/
+docs/tool-routing-report.md
+progress.yaml
 
 # Prototype archive (legacy, large binaries)
 docs/archive/prototype/

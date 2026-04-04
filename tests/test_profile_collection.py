@@ -430,3 +430,53 @@ class TestProfileQuestions:
         questions = load_profile_questions()
         required = [q for q in questions if q.get("required")]
         assert len(required) >= 3  # at least identity, interests, style
+
+
+# ── Workspace Session Persistence ──────────────────────────────
+
+
+class TestWorkflowStateWorkspace:
+    """Tests for workspace_id / workspace_tag fields on WorkflowState."""
+
+    def test_workspace_id_serialization_roundtrip(self):
+        state = WorkflowState("test-trip", workspace_id="abc123def456", workspace_tag="miami-trip")
+        data = state.to_dict()
+        assert data["workspace_id"] == "abc123def456"
+        assert data["workspace_tag"] == "miami-trip"
+
+        restored = WorkflowState.from_dict(data)
+        assert restored.workspace_id == "abc123def456"
+        assert restored.workspace_tag == "miami-trip"
+
+    def test_workspace_id_absent_backward_compat(self):
+        """Legacy JSON without workspace fields should load with None values."""
+        data = {
+            "session_id": "abc123",
+            "trip_id": "2026-04-test",
+            "current_stage": "scheduling",
+            "completed_stages": ["poi_search"],
+            "status": "active",
+        }
+        state = WorkflowState.from_dict(data)
+        assert state.workspace_id is None
+        assert state.workspace_tag is None
+
+    def test_workspace_fields_in_list_all_sessions(self, tmp_path, monkeypatch):
+        import mcp_server.config as cfg
+        import mcp_server.workflow as _wf
+
+        sessions_dir = tmp_path / "sessions"
+        monkeypatch.setattr(cfg, "SESSIONS_DIR", sessions_dir)
+        monkeypatch.setattr(_wf, "SESSIONS_DIR", sessions_dir)
+
+        state = WorkflowState("test-trip", workspace_id="ws123", workspace_tag="test-tag")
+        # Save requires session dir to exist
+        sd = sessions_dir / state.session_id
+        sd.mkdir(parents=True)
+        state.save()
+
+        from mcp_server.workflow import list_all_sessions
+        sessions = list_all_sessions()
+        assert len(sessions) == 1
+        assert sessions[0]["workspace_id"] == "ws123"
+        assert sessions[0]["workspace_tag"] == "test-tag"

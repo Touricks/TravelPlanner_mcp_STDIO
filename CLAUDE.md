@@ -28,7 +28,7 @@ Requirements: see PRD.md
 ## MCP Server
 
 - MCP server code lives in `mcp_server/`; runs in `.venv-mcp/` (Python 3.12, FastMCP)
-- Registered in `.mcp.json` as `travel-planner` server; 15 tools, 7 resources, 1 prompt
+- Registered in `.mcp.json` as `travel-planner` server; 17 tools, 7 resources, 1 prompt
 - Workflow state persisted atomically to `sessions/{session_id}/workflow-state.json`
 - Use the `plan_trip` MCP prompt to trigger autonomous trip planning
 - Search tools (`search_pois`, `search_restaurants`, `search_hotels`) run `claude -p` as async subprocess; agent never calls WebSearch directly
@@ -38,6 +38,9 @@ Requirements: see PRD.md
 - 3-attempt error budget per stage; `resolve_blocked` for human recovery
 - `record_notion_urls` supports partial publish — call after each database creation
 - Stale sessions (>24h, not active) auto-cleaned on `start_trip`
+- `resume_trip(workspace_id)` and `resume_latest()` enable cross-conversation session resumption; workspace_id is server-generated in `start_trip` and persisted to SQLite + workflow-state.json
+- Resume tools validate DB candidates against canonical workflow-state.json; `blocked` sessions are resumable (mapped to `active` in SQLite)
+- Session status synced to SQLite on complete_trip and cancel_trip via `bridge.update_session_status`
 
 ## Workflow
 

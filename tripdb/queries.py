@@ -104,3 +104,61 @@ def resolve_candidate(
         (session_id, candidate_id),
     ).fetchone()
     return row[0] if row else None
+
+
+def find_active_session_by_workspace(
+    conn: sqlite3.Connection,
+    workspace_id: str,
+) -> Optional[dict]:
+    """Find the most recent active session for a workspace_id."""
+    cur = conn.execute(
+        "SELECT s.*, t.destination, t.start_date, t.end_date "
+        "FROM sessions s "
+        "JOIN trips t ON s.trip_id = t.id "
+        "WHERE s.workspace_id = ? AND s.status = 'active' "
+        "ORDER BY s.created_at DESC LIMIT 1",
+        (workspace_id,),
+    )
+    rows = _rows_to_dicts(cur)
+    return rows[0] if rows else None
+
+
+def find_sessions_by_tag(
+    conn: sqlite3.Connection,
+    workspace_tag: str,
+) -> list:
+    """Search sessions by human-readable tag (substring match)."""
+    cur = conn.execute(
+        "SELECT s.*, t.destination, t.start_date, t.end_date "
+        "FROM sessions s "
+        "JOIN trips t ON s.trip_id = t.id "
+        "WHERE s.workspace_tag LIKE ? "
+        "ORDER BY s.created_at DESC",
+        (f"%{workspace_tag}%",),
+    )
+    return _rows_to_dicts(cur)
+
+
+def find_latest_active_session(conn: sqlite3.Connection) -> Optional[dict]:
+    """Find the most recently created active session."""
+    cur = conn.execute(
+        "SELECT s.*, t.destination, t.start_date, t.end_date "
+        "FROM sessions s "
+        "JOIN trips t ON s.trip_id = t.id "
+        "WHERE s.status = 'active' "
+        "ORDER BY s.created_at DESC LIMIT 1",
+    )
+    rows = _rows_to_dicts(cur)
+    return rows[0] if rows else None
+
+
+def find_all_active_sessions(conn: sqlite3.Connection) -> list:
+    """Find all active sessions, ordered by most recent first."""
+    cur = conn.execute(
+        "SELECT s.*, t.destination, t.start_date, t.end_date "
+        "FROM sessions s "
+        "JOIN trips t ON s.trip_id = t.id "
+        "WHERE s.status = 'active' "
+        "ORDER BY s.created_at DESC",
+    )
+    return _rows_to_dicts(cur)

@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import sys
+import uuid
 from pathlib import Path
 from typing import Any, Optional
 
@@ -367,12 +368,13 @@ def _build_hotel_search_prompt(state: WorkflowState) -> str:
 # Tools
 # ---------------------------------------------------------------------------
 
-@mcp.tool(description="Initialize a new trip and start the planning workflow. Returns session_id for all subsequent calls.")
+@mcp.tool(description="Initialize a new trip and start the planning workflow. Returns session_id and workspace_id for all subsequent calls. Pass optional workspace_tag for human-readable labeling.")
 def start_trip(
     destination: str,
     start_date: str,
     end_date: str,
     overrides: Optional[dict] = None,
+    workspace_tag: Optional[str] = None,
 ) -> dict[str, Any]:
     from profile.schema import check_profile_completeness, load_profile_safe
     from profile.trip_prefs import create_trip_prefs, save_trip_prefs
@@ -387,7 +389,8 @@ def start_trip(
     td.mkdir(parents=True, exist_ok=True)
     save_trip_prefs(td / "trip-prefs.yaml", prefs)
 
-    state = WorkflowState(trip_id)
+    workspace_id = uuid.uuid4().hex[:12]
+    state = WorkflowState(trip_id, workspace_id=workspace_id, workspace_tag=workspace_tag)
 
     # Conditional profile_collection insertion
     profile = load_profile_safe(config.PROFILE_PATH)
@@ -416,11 +419,13 @@ def start_trip(
     # Bridge: ensure trip + session exist in SQLite
     from tripdb.bridge import ensure_trip as _ensure_trip, register_session as _register
     _bridge_call(_ensure_trip, trip_id, destination, start_date, end_date)
-    _bridge_call(_register, state.session_id, trip_id)
+    _bridge_call(_register, state.session_id, trip_id, workspace_id, workspace_tag)
 
     return {
         "session_id": state.session_id,
         "trip_id": trip_id,
+        "workspace_id": workspace_id,
+        "workspace_tag": workspace_tag,
         "profile_complete": completeness["complete"],
         "profile_summary": profile_summary,
         "first_action": _build_action(state),
@@ -690,6 +695,10 @@ def complete_trip(
     state = WorkflowState.load(session_id)
     state.complete_stage("verify")
 
+    # Sync terminal status to SQLite
+    from tripdb.bridge import update_session_status as _update_status
+    _bridge_call(_update_status, session_id, "complete")
+
     return {
         "status": "complete",
         "summary": _session_summary(state),
@@ -765,9 +774,17 @@ def complete_profile_collection(session_id: str) -> dict[str, Any]:
     }
 
 
-@mcp.tool(description="List all sessions with their workflow status.")
-def list_trips() -> dict[str, Any]:
-    return {"sessions": list_all_sessions()}
+@mcp.tool(description="List all sessions with their workflow status. Optionally filter by workspace_id or workspace_tag.")
+def list_trips(
+    workspace_id: Optional[str] = None,
+    workspace_tag: Optional[str] = None,
+) -> dict[str, Any]:
+    sessions = list_all_sessions()
+    if workspace_id:
+        sessions = [s for s in sessions if s.get("workspace_id") == workspace_id]
+    if workspace_tag:
+        sessions = [s for s in sessions if workspace_tag in (s.get("workspace_tag") or "")]
+    return {"sessions": sessions}
 
 
 @mcp.tool(description="Cancel (abandon) a trip. Cleans up session directory.")
@@ -777,7 +794,154 @@ def cancel_trip(
 ) -> dict[str, Any]:
     state = WorkflowState.load(session_id)
     state.cancel(reason)
+
+    # Sync terminal status to SQLite
+    from tripdb.bridge import update_session_status as _update_status
+    _bridge_call(_update_status, session_id, "cancelled")
+
     return {"status": "cancelled", "session_id": session_id, "reason": reason}
+
+
+@mcp.tool(description="Resume an active session by workspace_id. Use after conversation restart when workspace_id is known.")
+def resume_trip(workspace_id: str) -> dict[str, Any]:
+    from tripdb.queries import find_active_session_by_workspace
+
+    # 1. Query SQLite for active session with this workspace_id
+    conn = _get_db_connection()
+    session_row = None
+    if conn:
+        try:
+            session_row = find_active_session_by_workspace(conn, workspace_id)
+        finally:
+            conn.close()
+
+    # 2. If DB row found, validate against canonical workflow-state.json
+    if session_row:
+        session_id = session_row["id"]
+        try:
+            state = WorkflowState.load(session_id)
+            # JSON is canonical: only resume if truly active or blocked
+            if state.status in ("active", "blocked"):
+                return {
+                    "status": "resumed",
+                    "session_id": state.session_id,
+                    "trip_id": state.trip_id,
+                    "workspace_id": state.workspace_id,
+                    "workspace_tag": state.workspace_tag,
+                    "current_stage": state.current_stage,
+                    "completed_stages": state.completed_stages,
+                    "workflow_status": state.status,
+                    "next_action": _build_action(state),
+                }
+            # Stale DB row: JSON says complete/cancelled but DB said active
+            return {"status": "not_found", "workspace_id": workspace_id}
+        except FileNotFoundError:
+            return {
+                "status": "orphaned",
+                "reason": f"Session {session_id} found in DB but workflow state file missing",
+                "session_info": {
+                    "session_id": session_id,
+                    "trip_id": session_row.get("trip_id"),
+                    "destination": session_row.get("destination"),
+                },
+            }
+
+    # 3. Fallback: scan sessions/ dirs for matching workspace_id
+    if config.SESSIONS_DIR.exists():
+        for d in sorted(config.SESSIONS_DIR.iterdir(), reverse=True):
+            state_file = d / "workflow-state.json"
+            try:
+                data = json.loads(state_file.read_text(encoding="utf-8"))
+                if data.get("workspace_id") == workspace_id and data.get("status") in ("active", "blocked"):
+                    state = WorkflowState.from_dict(data)
+                    return {
+                        "status": "resumed",
+                        "session_id": state.session_id,
+                        "trip_id": state.trip_id,
+                        "workspace_id": state.workspace_id,
+                        "workspace_tag": state.workspace_tag,
+                        "current_stage": state.current_stage,
+                        "completed_stages": state.completed_stages,
+                        "workflow_status": state.status,
+                        "next_action": _build_action(state),
+                    }
+            except (FileNotFoundError, json.JSONDecodeError, KeyError):
+                continue
+
+    # 4. Not found
+    return {"status": "not_found", "workspace_id": workspace_id}
+
+
+@mcp.tool(description="Resume the most recently active session. Use when workspace_id is unknown after conversation restart.")
+def resume_latest() -> dict[str, Any]:
+    from tripdb.queries import find_all_active_sessions
+
+    # 1. Query SQLite for active sessions
+    conn = _get_db_connection()
+    db_sessions = []
+    if conn:
+        try:
+            db_sessions = find_all_active_sessions(conn)
+        finally:
+            conn.close()
+
+    # 2. Validate each DB candidate against canonical JSON
+    valid_sessions = []
+    for row in db_sessions:
+        sid = row.get("id") or row.get("session_id")
+        try:
+            state = WorkflowState.load(sid)
+            if state.status in ("active", "blocked"):
+                valid_sessions.append(state)
+        except FileNotFoundError:
+            continue
+
+    # 3. Fallback: scan disk if DB returned nothing valid
+    if not valid_sessions:
+        all_sessions = list_all_sessions()
+        for s in all_sessions:
+            if s.get("status") in ("active", "blocked"):
+                try:
+                    state = WorkflowState.load(s["session_id"])
+                    if state.status in ("active", "blocked"):
+                        valid_sessions.append(state)
+                except FileNotFoundError:
+                    continue
+
+    if not valid_sessions:
+        return {"status": "no_active_sessions"}
+
+    if len(valid_sessions) == 1:
+        state = valid_sessions[0]
+        return {
+            "status": "resumed",
+            "session_id": state.session_id,
+            "trip_id": state.trip_id,
+            "workspace_id": state.workspace_id,
+            "workspace_tag": state.workspace_tag,
+            "current_stage": state.current_stage,
+            "completed_stages": state.completed_stages,
+            "workflow_status": state.status,
+            "next_action": _build_action(state),
+        }
+
+    # Multiple active sessions — return list for user to pick
+    return {
+        "status": "multiple_active",
+        "sessions": [
+            {
+                "session_id": s.session_id,
+                "trip_id": s.trip_id,
+                "workspace_id": s.workspace_id,
+                "workspace_tag": s.workspace_tag,
+                "current_stage": s.current_stage,
+                "workflow_status": s.status,
+                "created_at": s.created_at,
+            }
+            for s in valid_sessions
+        ],
+        "action": "Call resume_trip(workspace_id) with your chosen session's workspace_id",
+    }
 
 
 @mcp.tool(description="Human-assisted recovery from blocked state.")

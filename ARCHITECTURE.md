@@ -178,25 +178,29 @@ Contract files in `assets/configs/contracts/`:
 
 ## 7. MCP Server (Autonomous Workflow)
 
-An alternative to the shell-script pipeline: a Python MCP server (`mcp_server/`) that guides a Claude agent through the entire workflow autonomously after intent recognition.
+A Python MCP server (`mcp_server/`) that guides a Claude agent through the entire workflow autonomously after intent recognition. Server-side search tools delegate WebSearch to `claude -p` subprocesses, keeping the agent's context clean.
 
 **Transport:** stdio (registered in `.mcp.json`)
 **Runtime:** `.venv-mcp/` (Python 3.12, FastMCP SDK) — separate from project's 3.9-compatible code
+**Claude CLI:** Auto-detected at startup (`~/.local/bin/claude`, PATH, `/opt/homebrew/bin/claude`); cached after first call. Required for server-side search tools.
 
-### Tools (12)
+### Tools (15)
 
 | Tool | Purpose |
 |------|---------|
-| `start_trip` | Initialize trip + workflow state |
+| `start_trip` | Initialize trip + session, returns `session_id` |
 | `get_next_action` | Core orchestration — returns stage instructions + input artifacts + schema |
 | `submit_artifact` | Validate (JSON Schema + rule engine) and save stage output |
+| `search_pois` | **Server-side** POI search via `claude -p` async subprocess |
+| `search_restaurants` | **Server-side** restaurant search via `claude -p` async subprocess |
+| `search_hotels` | **Server-side** hotel search via `claude -p` async subprocess |
 | `run_review` | Server-side Stage 5 (hard rules + soft rules + Codex) |
 | `build_notion_manifest` | Generate 4-database Notion manifest |
 | `record_notion_urls` | Track partial/complete Notion publish |
 | `complete_trip` | Mark workflow complete |
 | `get_workflow_status` | Read-only status |
 | `update_profile` | Additive profile merge |
-| `list_trips` | Discover existing trips |
+| `list_trips` | Discover existing sessions |
 | `cancel_trip` | Abandon a trip |
 | `resolve_blocked` | Human-assisted recovery (retry/skip/override) |
 
@@ -206,18 +210,34 @@ An alternative to the shell-script pipeline: a Python MCP server (`mcp_server/`)
 |-------------|------|-------------|
 | `travel://config/guardrails` | concrete | Guardrails YAML |
 | `travel://config/property-mapping` | concrete | Notion property schemas |
-| `travel://trip/{id}/profile` | template | Merged profile |
-| `travel://trip/{id}/artifact/{name}` | template | Stage artifacts |
-| `travel://trip/{id}/state` | template | Workflow state |
-| `travel://trip/{id}/notion-manifest` | template | Cached Notion manifest |
+| `travel://session/{id}/profile` | template | Merged profile |
+| `travel://session/{id}/artifact/{name}` | template | Stage artifacts |
+| `travel://session/{id}/state` | template | Workflow state |
+| `travel://session/{id}/notion-manifest` | template | Cached Notion manifest |
 | `travel://config/contract/{name}` | template | JSON Schema contracts |
+
+### Session Management
+
+- `start_trip` generates a `session_id` (12-char UUID hex); all subsequent tools use it
+- Artifacts stored in `sessions/{session_id}/` (session-scoped, NOT in `assets/data/`)
+- Backward compat: `WorkflowState.load()` resolves `trip_id` via scan if session_id not found
+- Stale sessions (>24h, not active/complete) auto-cleaned on `start_trip`
+
+### Search Architecture
+
+Search tools (`search_pois`, `search_restaurants`, `search_hotels`) run `claude -p` with `--allowedTools "WebSearch"` as async subprocesses (`asyncio.create_subprocess_exec`, 600s timeout). The agent never uses WebSearch directly — it calls search tools and gets structured results back.
+
+```
+Agent ──search_pois(session_id)──> Server ──claude -p subprocess──> WebSearch
+                                      └──> validates + saves + returns summary
+```
 
 ### Workflow State Machine
 
 ```
-start_trip → POI_SEARCH → SCHEDULING → RESTAURANTS → HOTELS ��� REVIEW → NOTION → VERIFY → COMPLETE
-                                         ↑                        │
-                                         └── regress on hard ─────┘
+start_trip → POI_SEARCH → SCHEDULING → RESTAURANTS → HOTELS → REVIEW → NOTION → VERIFY → COMPLETE
+                                         ↑                       │
+                                         └── regress on hard ────┘
 ```
 
 - 3-attempt error budget per stage → blocked → `resolve_blocked`
@@ -227,16 +247,17 @@ start_trip → POI_SEARCH → SCHEDULING → RESTAURANTS → HOTELS ��� RE
 ### Agent Loop
 
 The `plan_trip` MCP prompt programs the agent to:
-1. Call `start_trip` with extracted intent
-2. Loop: `get_next_action` → generate artifact → `submit_artifact` → advance or retry
-3. `run_review` (server-side validation gate)
-4. `build_notion_manifest` → publish via Notion MCP → `record_notion_urls`
-5. `complete_trip`
+1. Call `start_trip` — returns `session_id`
+2. For search stages: call `search_pois` / `search_restaurants` / `search_hotels`
+3. For scheduling: generate artifact → `submit_artifact` → advance or retry
+4. `run_review` (server-side validation gate)
+5. `build_notion_manifest` → publish via Notion MCP → `record_notion_urls`
+6. `complete_trip`
 
 ## 8. Constraints
 
-- Prototype SQLite schema is read-only from this project's perspective; writes go through prototype CLI commands
+- `tripdb/` SQLite schema is read-only from this project's perspective; writes go through CLI (`python3 -m tripdb.cli.trip`)
 - Notion MCP batch limit: 100 items per create call
 - Codex CLI invocation is async; pipeline waits for completion
-- One active trip at a time (no parallel trip state)
 - MCP server requires Python 3.10+ (runs in `.venv-mcp/`)
+- `claude` CLI required for server-side search tools (auto-detected at startup)

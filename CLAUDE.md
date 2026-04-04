@@ -14,7 +14,9 @@ Requirements: see PRD.md
 - Notion output uses 4 separate databases: Itinerary (board view by day), Restaurants (table), Hotels (table), Notices (table)
 - Bilingual output required: populate both English and Chinese fields on all Notion entries
 - Codex review prompts live in assets/prompts/ and produce structured YAML reports (accept/flag/reject per item)
-- One active trip at a time; trip artifacts live in assets/data/{YYYY-MM-destination}/
+- All MCP tools use session_id (not trip_id) as primary key; start_trip returns session_id; artifacts stored in sessions/{session_id}/; backward compat via trip_id scan
+- Agent does NOT use WebSearch directly; search stages (poi_search, restaurants, hotels) use server-side tools (search_pois, search_restaurants, search_hotels) that run claude -p subprocess with --allowedTools WebSearch
+- Search results and workflow artifacts are session-scoped in sessions/{session_id}/, NOT in assets/data/; assets/data/ is reserved for legacy pipeline/run.sh only
 - Use `from __future__ import annotations` and `Optional[X]` instead of `X | None` — system Python is 3.9
 - Time overlap checker must suppress parent-child relationships via parent_item_index; nested activities are intentional overlaps, not violations
 - Codex CLI invocations must use `codex exec --skip-git-repo-check` for non-interactive mode. Parse stdout by extracting the last valid JSON array — codex duplicates output with session metadata.
@@ -22,15 +24,16 @@ Requirements: see PRD.md
 ## MCP Server
 
 - MCP server code lives in `mcp_server/`; runs in `.venv-mcp/` (Python 3.12, FastMCP)
-- Registered in `.mcp.json` as `travel-planner` server
-- The server manages workflow state, validates artifacts, and provides stage instructions; the agent does generation work
-- Workflow state persisted atomically to `assets/data/{trip_id}/workflow-state.json`
+- Registered in `.mcp.json` as `travel-planner` server; 15 tools, 7 resources, 1 prompt
+- Workflow state persisted atomically to `sessions/{session_id}/workflow-state.json`
 - Use the `plan_trip` MCP prompt to trigger autonomous trip planning
+- Search tools (`search_pois`, `search_restaurants`, `search_hotels`) run `claude -p` as async subprocess; agent never calls WebSearch directly
 - `submit_artifact` validates against JSON Schema + rule engine before saving; never bypass it
 - `run_review` is server-side only — rule engine + Codex run in Python, not delegated to agent
 - REVIEW regression returns machine-readable remediation payload with stale_artifacts list
 - 3-attempt error budget per stage; `resolve_blocked` for human recovery
 - `record_notion_urls` supports partial publish — call after each database creation
+- Stale sessions (>24h, not active) auto-cleaned on `start_trip`
 
 ## Workflow
 

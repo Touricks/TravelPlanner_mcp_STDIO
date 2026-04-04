@@ -117,3 +117,61 @@ entries:
     promotion_targets:
     - ARCHITECTURE.md
   absorbed_to: CLAUDE.md/ARCHITECTURE.md
+- date: '2026-04-03'
+  title: MCP server + prototype decomposition + session/search refactor
+  status: absorbed
+  session_report: docs/sessions/2026-04-03-mcp-server-prototype-decomposition-session-search-refactor.md
+  next_steps:
+  - E2E test search_pois with real claude -p subprocess
+  - Update PRD.md with MCP server + session ID requirements
+  - Test concurrent sessions (start two trips simultaneously)
+  - Update README.md for session_id API changes
+  candidates:
+  - id: cand-2026-04-03-session-id-primary-key
+    type: rule
+    text: All MCP tools use session_id (not trip_id) as primary key. start_trip returns
+      session_id; artifacts stored in sessions/{session_id}/. Backward compat - WorkflowState.load()
+      resolves trip_id via scan.
+    scope: global
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-03-server-side-websearch
+    type: rule
+    text: Agent does NOT use WebSearch directly. Search stages (poi_search, restaurants,
+      hotels) use server-side tools (search_pois, search_restaurants, search_hotels)
+      that run claude -p subprocess with --allowedTools WebSearch.
+    scope: global
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-03-session-scoped-artifacts
+    type: rule
+    text: Search results and workflow artifacts are session-scoped in sessions/{session_id}/,
+      NOT in assets/data/. assets/data/ is reserved for legacy pipeline/run.sh only.
+    scope: global
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-03-claude-cli-autodetect
+    type: fact
+    text: MCP server auto-detects claude CLI at startup by checking PATH, ~/.local/bin/claude,
+      /usr/local/bin/claude, /opt/homebrew/bin/claude. Cached after first call. Required
+      for server-side search tools.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  - id: cand-2026-04-03-mcp-server-15-tools
+    type: fact
+    text: MCP server has 15 tools (12 workflow + 3 async search), 7 resources (URIs
+      use travel://session/{session_id}/...), 1 prompt (plan_trip). Search tools use
+      asyncio.create_subprocess_exec with 600s timeout.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  absorbed_to: CLAUDE.md/ARCHITECTURE.md

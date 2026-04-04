@@ -1,0 +1,138 @@
+{
+  "destination": "Miami, FL",
+  "search_date": "2026-04-04",
+  "candidates": [
+    {
+      "candidate_id": "18c1f1013989",
+      "name_en": "South Beach",
+      "name_cn": "南海滩",
+      "style": "nature",
+      "address": "Ocean Drive, Miami Beach, FL",
+      "city": "Miami Beach",
+      "duration_minutes": 120,
+      "description": "Iconic stretch of sand along the Atlantic with Art Deco architecture",
+      "priority": "must_visit"
+    },
+    {
+      "candidate_id": "672ed523bf0c",
+      "name_en": "Wynwood Walls",
+      "name_cn": "温伍德墙",
+      "style": "culture",
+      "address": "2520 NW 2nd Ave, Miami, FL 33127",
+      "city": "Miami",
+      "duration_minutes": 90,
+      "description": "Open-air street art museum in Wynwood Arts District",
+      "priority": "must_visit"
+    },
+    {
+      "candidate_id": "51c54377a06d",
+      "name_en": "Everglades National Park",
+      "name_cn": "大沼泽地国家公园",
+      "style": "nature",
+      "address": "40001 State Road 9336, Homestead, FL 33034",
+      "city": "Homestead",
+      "duration_minutes": 240,
+      "description": "UNESCO World Heritage wetlands with airboat tours and wildlife",
+      "priority": "must_visit"
+    },
+    {
+      "candidate_id": "a731ea6c9b66",
+      "name_en": "Little Havana",
+      "name_cn": "小哈瓦那",
+      "style": "culture",
+      "address": "Calle Ocho, SW 8th St, Miami, FL",
+      "city": "Miami",
+      "duration_minutes": 120,
+      "description": "Cuban-American cultural district with domino park and cigar shops",
+      "priority": "must_visit"
+    },
+    {
+      "candidate_id": "8dc24ea4387d",
+      "name_en": "Key Biscayne Beach",
+      "name_cn": "比斯坎湾海滩",
+      "style": "nature",
+      "address": "Crandon Park, Key Biscayne, FL 33149",
+      "city": "Key Biscayne",
+      "duration_minutes": 150,
+      "description": "Pristine beach on barrier island south of Miami",
+      "priority": "nice_to_have"
+    },
+    {
+      "candidate_id": "4ca1e4561b18",
+      "name_en": "Vizcaya Museum and Gardens",
+      "name_cn": "维兹卡亚博物馆",
+      "style": "landmark",
+      "address": "3251 S Miami Ave, Miami, FL 33129",
+      "city": "Miami",
+      "duration_minutes": 120,
+      "description": "Italian Renaissance-style villa and formal gardens on Biscayne Bay",
+      "priority": "must_visit"
+    },
+    {
+      "candidate_id": "2a029a82ece7",
+      "name_en": "Perez Art Museum Miami",
+      "name_cn": "佩雷斯艺术博物馆",
+      "style": "culture",
+      "address": "1103 Biscayne Blvd, Miami, FL 33132",
+      "city": "Miami",
+      "duration_minutes": 90,
+      "description": "Contemporary art museum overlooking Biscayne Bay",
+      "priority": "nice_to_have"
+    },
+    {
+      "candidate_id": "bf9296fa47e7",
+      "name_en": "Bayside Marketplace",
+      "name_cn": "海湾市场",
+      "style": "landmark",
+      "address": "401 Biscayne Blvd, Miami, FL 33132",
+      "city": "Miami",
+      "duration_minutes": 60,
+      "description": "Waterfront entertainment and shopping complex",
+      "priority": "flexible"
+    },
+    {
+      "candidate_id": "817d6bb7e9be",
+      "name_en": "Coconut Grove",
+      "name_cn": "椰林区",
+      "style": "landmark",
+      "address": "Main Hwy, Coconut Grove, Miami, FL",
+      "city": "Miami",
+      "duration_minutes": 90,
+      "description": "Historic bohemian neighborhood with shops and waterfront parks",
+      "priority": "nice_to_have"
+    },
+    {
+      "candidate_id": "a2d1a0227418",
+      "name_en": "Bill Baggs Cape Florida State Park",
+      "name_cn": "比尔巴格斯州立公园",
+      "style": "nature",
+      "address": "1200 S Crandon Blvd, Key Biscayne, FL 33149",
+      "city": "Key Biscayne",
+      "duration_minutes": 120,
+      "description": "State park with historic lighthouse and beaches",
+      "priority": "nice_to_have"
+    },
+    {
+      "candidate_id": "5849f35f34ef",
+      "name_en": "Miami Design District",
+      "name_cn": "迈阿密设计区",
+      "style": "landmark",
+      "address": "140 NE 39th St, Miami, FL 33137",
+      "city": "Miami",
+      "duration_minutes": 90,
+      "description": "Upscale shopping and design neighborhood",
+      "priority": "flexible"
+    },
+    {
+      "candidate_id": "9524cf53d982",
+      "name_en": "Jungle Island",
+      "name_cn": "丛林岛",
+      "style": "nature",
+      "address": "1111 Parrot Jungle Trail, Miami, FL 33132",
+      "city": "Miami",
+      "duration_minutes": 120,
+      "description": "Interactive zoological park on Watson Island",
+      "priority": "flexible"
+    }
+  ]
+}

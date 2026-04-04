@@ -554,7 +554,7 @@ async def search_restaurants(session_id: str) -> dict[str, Any]:
     trip_start = itin.get("start_date", "")
     if not trip_start:
         prefs = _load_trip_prefs(state.trip_id)
-        trip_start = prefs.get("start_date", "")
+        trip_start = prefs.get("dates", {}).get("start", "")
     br = _bridge_call(_import_rest, state.session_id, state.trip_id, result,
                       trip_start)
 

@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.DS_Store
+.venv-mcp/
+.pytest_cache/
+.compaction-state.json
+.sentinel/
+reference/
+prototype/
+*.tmp

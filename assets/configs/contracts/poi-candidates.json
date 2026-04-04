@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "destination": { "type": "string" },
+    "search_date": { "type": "string" },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name_en": { "type": "string" },
+          "name_cn": { "type": "string" },
+          "style": {
+            "type": "string",
+            "enum": ["nature", "tech", "culture", "food", "landmark", "coffee"]
+          },
+          "address": { "type": "string" },
+          "city": { "type": "string" },
+          "hours": { "type": "string" },
+          "lat": { "type": "number" },
+          "lng": { "type": "number" },
+          "duration_minutes": { "type": "integer" },
+          "description": { "type": "string" },
+          "source": { "type": "string" },
+          "priority": {
+            "type": "string",
+            "enum": ["must_visit", "nice_to_have", "flexible", "agent_suggested"]
+          },
+          "notes": { "type": "string" }
+        },
+        "required": ["name_en", "style", "address", "duration_minutes", "description"]
+      }
+    }
+  },
+  "required": ["destination", "candidates"]
+}

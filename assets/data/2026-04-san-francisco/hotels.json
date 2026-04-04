@@ -1,0 +1,93 @@
+{
+  "trip_id": "2026-04-san-francisco",
+  "recommendations": [
+    {
+      "check_in": "2026-04-17",
+      "check_out": "2026-04-18",
+      "nights": 1,
+      "name": "Hotel Caza Fisherman's Wharf",
+      "name_cn": "卡萨渔人码头酒店",
+      "address": "1300 Columbus Ave, San Francisco, CA 94133, United States",
+      "city": "San Francisco",
+      "near_region": "Fisherman's Wharf",
+      "price_tier": "moderate"
+    },
+    {
+      "check_in": "2026-04-18",
+      "check_out": "2026-04-19",
+      "nights": 1,
+      "name": "Cannery Row Inn",
+      "name_cn": "罐头厂街旅馆",
+      "address": "200 Foam St",
+      "city": "Monterey",
+      "near_region": "Cannery Row",
+      "price_tier": "moderate"
+    },
+    {
+      "check_in": "2026-04-19",
+      "check_out": "2026-04-20",
+      "nights": 1,
+      "name": "FogCatcher Inn",
+      "name_cn": "福格卡彻旅馆",
+      "address": "6400 Moonstone Beach Dr, Cambria, CA 93428",
+      "city": "Cambria",
+      "near_region": "Moonstone Beach",
+      "price_tier": "moderate"
+    },
+    {
+      "check_in": "2026-04-20",
+      "check_out": "2026-04-21",
+      "nights": 1,
+      "name": "Courtyard by Marriott Santa Barbara Downtown",
+      "name_cn": "圣巴巴拉市中心万怡酒店",
+      "address": "1601 State Street",
+      "city": "Santa Barbara",
+      "near_region": "State Street / Downtown Santa Barbara",
+      "price_tier": "moderate"
+    },
+    {
+      "check_in": "2026-04-21",
+      "check_out": "2026-04-22",
+      "nights": 1,
+      "name": "Hampton Inn & Suites Los Angeles/Hollywood",
+      "name_cn": "洛杉矶好莱坞希尔顿欢朋套房酒店",
+      "address": "1133 Vine Street",
+      "city": "Los Angeles",
+      "near_region": "Hollywood",
+      "price_tier": "moderate"
+    },
+    {
+      "check_in": "2026-04-22",
+      "check_out": "2026-04-23",
+      "nights": 1,
+      "name": "Buckeye Tree Lodge & Cabins",
+      "name_cn": "巴克艾树旅馆及小木屋",
+      "address": "46000 Sierra Drive, Three Rivers, CA 93271",
+      "city": "Three Rivers",
+      "near_region": "Sequoia National Park Ash Mountain Entrance",
+      "price_tier": "moderate"
+    },
+    {
+      "check_in": "2026-04-23",
+      "check_out": "2026-04-24",
+      "nights": 1,
+      "name": "Comfort Inn & Suites Sequoia Kings Canyon",
+      "name_cn": "红顶旅馆及套房酒店 - 红杉与国王峡谷",
+      "address": "40820 Sierra Drive",
+      "city": "Three Rivers, CA",
+      "near_region": "Sequoia National Park Ash Mountain Entrance",
+      "price_tier": "moderate"
+    },
+    {
+      "check_in": "2026-04-24",
+      "check_out": "2026-04-25",
+      "nights": 1,
+      "name": "Hotel Triton",
+      "name_cn": "特里同酒店",
+      "address": "342 Grant Avenue",
+      "city": "San Francisco",
+      "near_region": "Chinatown",
+      "price_tier": "moderate"
+    }
+  ]
+}

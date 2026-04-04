@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "trip_id": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "total_items": { "type": "integer" },
+        "accepted": { "type": "integer" },
+        "flagged": { "type": "integer" },
+        "rejected": { "type": "integer" }
+      },
+      "required": ["total_items", "accepted", "flagged", "rejected"]
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ref": { "type": "string" },
+          "source": {
+            "type": "string",
+            "enum": ["hard_rule", "soft_rule", "codex"]
+          },
+          "verdict": {
+            "type": "string",
+            "enum": ["accept", "flag", "reject"]
+          },
+          "rule_id": { "type": "string" },
+          "reason": { "type": "string" },
+          "suggestion": { "type": "string" }
+        },
+        "required": ["ref", "source", "verdict", "reason"]
+      }
+    }
+  },
+  "required": ["trip_id", "summary", "items"]
+}

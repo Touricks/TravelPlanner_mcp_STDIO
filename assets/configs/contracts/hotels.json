@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "trip_id": { "type": "string" },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "check_in": { "type": "string" },
+          "check_out": { "type": "string" },
+          "nights": { "type": "integer" },
+          "name": { "type": "string" },
+          "name_cn": { "type": "string" },
+          "address": { "type": "string" },
+          "city": { "type": "string" },
+          "near_region": { "type": "string" },
+          "price_tier": {
+            "type": "string",
+            "enum": ["budget", "moderate", "premium"]
+          },
+          "booking_url": { "type": "string" },
+          "notes": { "type": "string" }
+        },
+        "required": ["check_in", "check_out", "name", "address", "city"]
+      }
+    }
+  },
+  "required": ["trip_id", "recommendations"]
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "trip_id": { "type": "string" },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "day_num": { "type": "integer" },
+          "meal_type": {
+            "type": "string",
+            "enum": ["lunch", "dinner"]
+          },
+          "name_en": { "type": "string" },
+          "name_cn": { "type": "string" },
+          "cuisine": { "type": "string" },
+          "price_tier": {
+            "type": "string",
+            "enum": ["budget", "moderate", "premium"]
+          },
+          "address": { "type": "string" },
+          "near_poi": { "type": "string" },
+          "reservation_required": { "type": "boolean" },
+          "booking_url": { "type": "string" },
+          "notes": { "type": "string" }
+        },
+        "required": ["day_num", "meal_type", "name_en", "cuisine", "address", "near_poi"]
+      }
+    }
+  },
+  "required": ["trip_id", "recommendations"]
+}

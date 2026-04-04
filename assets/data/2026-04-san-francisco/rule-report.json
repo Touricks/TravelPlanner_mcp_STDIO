@@ -1,0 +1,51 @@
+{
+  "hard_violations": [],
+  "soft_warnings": [
+    {
+      "rule": "meal_coverage",
+      "day_num": 1,
+      "detail": "Day 1 missing lunch and dinner window"
+    },
+    {
+      "rule": "meal_coverage",
+      "day_num": 2,
+      "detail": "Day 2 missing lunch and dinner window"
+    },
+    {
+      "rule": "meal_coverage",
+      "day_num": 3,
+      "detail": "Day 3 missing lunch and dinner window"
+    },
+    {
+      "rule": "meal_coverage",
+      "day_num": 4,
+      "detail": "Day 4 missing lunch and dinner window"
+    },
+    {
+      "rule": "meal_coverage",
+      "day_num": 5,
+      "detail": "Day 5 missing lunch and dinner window"
+    },
+    {
+      "rule": "meal_coverage",
+      "day_num": 6,
+      "detail": "Day 6 missing lunch and dinner window"
+    },
+    {
+      "rule": "meal_coverage",
+      "day_num": 7,
+      "detail": "Day 7 missing lunch and dinner window"
+    },
+    {
+      "rule": "meal_coverage",
+      "day_num": 8,
+      "detail": "Day 8 missing lunch and dinner window"
+    },
+    {
+      "rule": "meal_coverage",
+      "day_num": 9,
+      "detail": "Day 9 missing lunch and dinner window"
+    }
+  ],
+  "pass": true
+}

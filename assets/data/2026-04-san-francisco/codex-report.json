@@ -1,0 +1,54 @@
+{
+  "source": "codex",
+  "items": [
+    {
+      "ref": "2026-04-17 itinerary",
+      "source": "codex",
+      "verdict": "flag",
+      "reason": "Day 1 has only 1 POI, which is below the requested minimum of 2 POIs for pace balance.",
+      "suggestion": "Add 1 more light stop near the arrival corridor or San Francisco waterfront, or explicitly mark this as an arrival/rest day."
+    },
+    {
+      "ref": "Cafe Capistrano",
+      "source": "codex",
+      "verdict": "reject",
+      "reason": "Day 2 lunch is not relevant to the day's POI region. The itinerary is Mountain View -> Stanford -> Monterey, while this restaurant is in Half Moon Bay and would add a major detour.",
+      "suggestion": "Replace it with a lunch option in Mountain View, Palo Alto, or along the direct southbound route to Monterey."
+    },
+    {
+      "ref": "2026-04-25 San Francisco ordering",
+      "source": "codex",
+      "verdict": "flag",
+      "reason": "The sequence Anthropic HQ -> Chinatown -> Mission District -> Fisherman's Wharf creates backtracking across the city. Mission and Fisherman's Wharf are in opposite directions, so this is not the most efficient daily ordering.",
+      "suggestion": "Reorder to reduce cross-city retracing, for example Anthropic HQ -> Mission District -> Chinatown -> Fisherman's Wharf, or group the northern neighborhoods together before heading to the airport."
+    },
+    {
+      "ref": "2026-04-23 lunch / Casa Mendoza",
+      "source": "codex",
+      "verdict": "reject",
+      "reason": "Day 7 lunch is not near the day's POIs. The itinerary stays in Sequoia National Park around Crescent Meadow, Lodgepole, and Giant Forest, while Casa Mendoza is down in Three Rivers outside the park.",
+      "suggestion": "Replace it with an in-park food option or add a packed lunch plan consistent with the park itinerary."
+    },
+    {
+      "ref": "Hampton Inn & Suites Los Angeles/Hollywood",
+      "source": "codex",
+      "verdict": "flag",
+      "reason": "Day 5 evening activity area is Downtown LA / Chinatown, but the hotel is in Hollywood, which is not especially close and adds extra night transfer time.",
+      "suggestion": "Use a hotel in Downtown LA, Chinatown, or South Park if the goal is to stay near the evening stop."
+    },
+    {
+      "ref": "Comfort Inn & Suites Sequoia Kings Canyon",
+      "source": "codex",
+      "verdict": "flag",
+      "reason": "Day 7 evening activity area is around Giant Forest / Wuksachi in Sequoia, but the hotel is in Three Rivers, far outside the park.",
+      "suggestion": "If the evening is intended to stay in the park area, switch to an in-park or near-Giant-Forest lodging; otherwise move dinner closer to Three Rivers."
+    },
+    {
+      "ref": "2026-04-24 itinerary",
+      "source": "codex",
+      "verdict": "flag",
+      "reason": "Day 8 has only 1 POI, which is below the requested minimum of 2 POIs for pace balance.",
+      "suggestion": "Add a short morning stop before leaving Sequoia or an afternoon stop after returning to San Francisco, or label the day as a transit-focused day."
+    }
+  ]
+}

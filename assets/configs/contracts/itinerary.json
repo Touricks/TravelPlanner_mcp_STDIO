@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "trip_id": { "type": "string" },
+    "start_date": { "type": "string" },
+    "end_date": { "type": "string" },
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": { "type": "string" },
+          "day_num": { "type": "integer" },
+          "region": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "poi_ref": { "type": "integer" },
+                "name_en": { "type": "string" },
+                "name_cn": { "type": "string" },
+                "style": { "type": "string" },
+                "start_time": { "type": "string" },
+                "end_time": { "type": "string" },
+                "duration_minutes": { "type": "integer" },
+                "timing_type": {
+                  "type": "string",
+                  "enum": ["fixed", "flexible", "windowed"]
+                },
+                "preceding_travel_minutes": { "type": "integer" },
+                "parent_item_index": { "type": "integer" },
+                "address": { "type": "string" },
+                "notes": { "type": "string" }
+              },
+              "required": ["name_en", "style", "start_time", "end_time", "duration_minutes"]
+            }
+          }
+        },
+        "required": ["date", "day_num", "items"]
+      }
+    }
+  },
+  "required": ["trip_id", "start_date", "end_date", "days"]
+}

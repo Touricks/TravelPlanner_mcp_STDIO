@@ -1,0 +1,186 @@
+{
+  "trip_id": "2026-04-san-francisco",
+  "recommendations": [
+    {
+      "day_num": 1,
+      "meal_type": "lunch",
+      "name_en": "Scoma's of Sausalito",
+      "name_cn": "斯科马海鲜餐厅（索萨利托店）",
+      "cuisine": "Local seafood",
+      "price_tier": "premium",
+      "address": "588 Bridgeway, Sausalito, CA 94965",
+      "near_poi": "Sausalito waterfront"
+    },
+    {
+      "day_num": 1,
+      "meal_type": "dinner",
+      "name_en": "Dragon Beaux",
+      "name_cn": "龙宝阁",
+      "cuisine": "Chinese",
+      "price_tier": "moderate",
+      "address": "5700 Geary Boulevard, San Francisco, CA 94121",
+      "near_poi": "Lands End"
+    },
+    {
+      "day_num": 2,
+      "meal_type": "lunch",
+      "name_en": "Oren's Hummus",
+      "name_cn": "奥伦鹰嘴豆泥",
+      "cuisine": "Mediterranean",
+      "price_tier": "moderate",
+      "address": "261 University Ave, Palo Alto, CA 94301",
+      "near_poi": "Stanford University"
+    },
+    {
+      "day_num": 2,
+      "meal_type": "dinner",
+      "name_en": "Abalonetti Bar & Grill",
+      "name_cn": "阿巴洛内蒂酒吧烧烤",
+      "cuisine": "Monterey seafood",
+      "price_tier": "moderate",
+      "address": "57 Fisherman's Wharf, Monterey, CA 93940",
+      "near_poi": "Old Fisherman's Wharf"
+    },
+    {
+      "day_num": 3,
+      "meal_type": "lunch",
+      "name_en": "Nepenthe",
+      "name_cn": "内彭蒂餐厅",
+      "cuisine": "Local California / Central Coast",
+      "price_tier": "premium",
+      "address": "48510 Highway 1, Big Sur, CA 93920",
+      "near_poi": "Pfeiffer Big Sur State Park"
+    },
+    {
+      "day_num": 3,
+      "meal_type": "dinner",
+      "name_en": "El Chorlito Mexican Restaurant",
+      "name_cn": "埃尔乔利托墨西哥餐厅",
+      "cuisine": "Mexican",
+      "price_tier": "moderate",
+      "address": "9155 Hearst Dr, San Simeon, CA 93452",
+      "near_poi": "Hearst Castle"
+    },
+    {
+      "day_num": 4,
+      "meal_type": "lunch",
+      "name_en": "Solvang Restaurant",
+      "name_cn": "索尔万餐厅",
+      "cuisine": "Danish / local representative food",
+      "price_tier": "moderate",
+      "address": "1672 Copenhagen Dr., Solvang, CA 93463",
+      "near_poi": "Downtown Solvang"
+    },
+    {
+      "day_num": 4,
+      "meal_type": "dinner",
+      "name_en": "Los Arroyos",
+      "name_cn": "洛斯阿罗约斯墨西哥餐厅",
+      "cuisine": "Mexican",
+      "price_tier": "moderate",
+      "address": "14 W Figueroa St, Santa Barbara, CA 93101",
+      "near_poi": "Santa Barbara County Courthouse"
+    },
+    {
+      "day_num": 5,
+      "meal_type": "lunch",
+      "name_en": "Blue Plate Taco",
+      "name_cn": "蓝盘塔可",
+      "cuisine": "Mexican",
+      "price_tier": "moderate",
+      "address": "1515 Ocean Ave, Santa Monica, CA 90401",
+      "near_poi": "Santa Monica Pier"
+    },
+    {
+      "day_num": 5,
+      "meal_type": "dinner",
+      "name_en": "Yang Chow",
+      "name_cn": "怡园",
+      "cuisine": "Chinese",
+      "price_tier": "moderate",
+      "address": "819 N Broadway, Los Angeles, CA 90012",
+      "near_poi": "Downtown LA (Chinatown)"
+    },
+    {
+      "day_num": 6,
+      "meal_type": "lunch",
+      "name_en": "Lodgepole Grill, Market, and Snack Bar",
+      "name_cn": "洛奇波尔烧烤与市场小吃吧",
+      "cuisine": "American casual / local park grill",
+      "price_tier": "budget",
+      "address": "63204 Lodgepole Rd, Sequoia National Park, CA 93262",
+      "near_poi": "Lodgepole Visitor Center"
+    },
+    {
+      "day_num": 6,
+      "meal_type": "dinner",
+      "name_en": "Casa Mendoza",
+      "name_cn": "卡萨门多萨墨西哥餐厅",
+      "cuisine": "Mexican",
+      "price_tier": "moderate",
+      "address": "40869 Sierra Dr Unit C, Three Rivers, CA 93271",
+      "near_poi": "Sequoia National Park Ash Mountain Entrance / Three Rivers town center"
+    },
+    {
+      "day_num": 7,
+      "meal_type": "lunch",
+      "name_en": "Packed picnic lunch",
+      "name_cn": "自备野餐午餐",
+      "cuisine": "Self-catered",
+      "price_tier": "budget",
+      "address": "Crescent Meadow picnic area, Sequoia NP",
+      "near_poi": "Crescent Meadow",
+      "notes": "No restaurants near Giant Forest. Pack lunch from Three Rivers before entering park."
+    },
+    {
+      "day_num": 7,
+      "meal_type": "dinner",
+      "name_en": "The Peaks Restaurant",
+      "name_cn": "山峰餐厅",
+      "cuisine": "California / Sierra alpine",
+      "price_tier": "premium",
+      "address": "64740 Wuksachi Way, Sequoia National Park, CA 93262",
+      "near_poi": "Wuksachi Lodge / Giant Forest"
+    },
+    {
+      "day_num": 8,
+      "meal_type": "lunch",
+      "name_en": "River View Grill & Bar",
+      "name_cn": "河景烧烤酒吧",
+      "cuisine": "Local American grill",
+      "price_tier": "moderate",
+      "address": "42323 Sierra Dr, Three Rivers, CA 93271",
+      "near_poi": "Kaweah River"
+    },
+    {
+      "day_num": 8,
+      "meal_type": "dinner",
+      "name_en": "China Live",
+      "name_cn": "华生活",
+      "cuisine": "Modern Chinese",
+      "price_tier": "moderate",
+      "address": "644 Broadway, San Francisco, CA 94133",
+      "near_poi": "Chinatown / North Beach"
+    },
+    {
+      "day_num": 9,
+      "meal_type": "lunch",
+      "name_en": "Yank Sing",
+      "name_cn": "饮胜",
+      "cuisine": "Cantonese dim sum",
+      "price_tier": "premium",
+      "address": "101 Spear St, San Francisco, CA 94105",
+      "near_poi": "SoMa"
+    },
+    {
+      "day_num": 9,
+      "meal_type": "dinner",
+      "name_en": "La Taqueria",
+      "name_cn": "拉塔克里亚",
+      "cuisine": "Mexican",
+      "price_tier": "budget",
+      "address": "2889 Mission St, San Francisco, CA 94110",
+      "near_poi": "Mission District"
+    }
+  ]
+}

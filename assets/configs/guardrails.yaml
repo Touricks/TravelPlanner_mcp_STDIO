@@ -1,0 +1,43 @@
+version: 1
+
+hard_rules:
+  nature_sunset:
+    description: "Nature POIs must end before 19:00"
+    applies_to:
+      style: [nature]
+    constraint:
+      field: time_end
+      operator: "<"
+      value: "19:00"
+
+  staffed_closing:
+    description: "Staffed venues must end before 16:00"
+    applies_to:
+      style: [tech, culture, landmark]
+    constraint:
+      field: time_end
+      operator: "<"
+      value: "16:00"
+
+  time_overlap:
+    description: "No overlapping time slots on same day"
+    type: pairwise
+    suppress_if: parent_child
+
+  travel_time:
+    description: "Travel time must fit between consecutive POIs"
+    type: sequential
+
+soft_rules:
+  daily_pace:
+    description: "POI count per day within travel_pace range"
+    source: profile.travel_pace.pois_per_day
+
+  region_cluster:
+    description: "Minimize cross-region travel within a single day"
+    max_distinct_regions: 3
+
+  meal_coverage:
+    description: "Each day should have lunch and dinner windows"
+    lunch_window: ["11:30", "13:30"]
+    dinner_window: ["17:30", "19:30"]

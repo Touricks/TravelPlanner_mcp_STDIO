@@ -29,16 +29,22 @@ The MCP server acts as a **workflow orchestrator** — it manages state, validat
 After the user makes a request, the agent runs a self-driven loop with no human intervention:
 
 ```
-start_trip(destination, dates)
+resume_trip(workspace_id) or resume_latest()
     |
+    +---> found?  resume from where it left off
+    +---> not found?
+            |
+            v
+start_trip(destination, dates, workspace_tag="tokyo-spring")
+    |                                  returns session_id + workspace_id
     v
-+-> get_next_action(trip_id) -----> returns stage instructions
++-> get_next_action(session_id) -----> returns stage instructions
 |       |
 |       v
 |   Agent generates artifact       (WebSearch, scheduling, etc.)
 |       |
 |       v
-|   submit_artifact(trip_id, stage, data)
+|   submit_artifact(session_id, stage, data)
 |       |
 |       +---> rejected? fix violations, resubmit (max 3 attempts)
 |       +---> accepted? loop back to get_next_action
@@ -46,6 +52,14 @@ start_trip(destination, dates)
 |
 +-- repeat until all stages complete
 ```
+
+### Session Resumption
+
+Sessions persist across conversations via `workspace_id`. When a conversation closes, the agent can resume later:
+
+1. `resume_trip(workspace_id)` — resume a specific session (workspace_id returned by start_trip)
+2. `resume_latest()` — auto-resume the most recently active session, or list multiple for user to pick
+3. The agent prompt includes a Step 0 Resume Check that runs before starting any new trip
 
 ### The 7 Stages
 
@@ -85,22 +99,28 @@ The agent then regenerates only the stale artifacts and resubmits.
 
 ## MCP Server Reference
 
-### Tools (12)
+### Tools (17)
 
 | Tool | Description |
 |------|-------------|
-| `start_trip` | Initialize trip with destination, dates, optional profile overrides |
+| `start_trip` | Initialize trip with destination, dates, optional workspace_tag |
 | `get_next_action` | Get stage instructions, input artifacts, output schema, prior errors |
 | `submit_artifact` | Validate (JSON Schema + rule engine) and save a stage's output |
+| `search_pois` | Server-side POI search via claude -p subprocess |
+| `search_restaurants` | Server-side restaurant search via claude -p subprocess |
+| `search_hotels` | Server-side hotel search via claude -p subprocess |
 | `run_review` | Server-side Stage 5: hard rules + soft rules + optional Codex review |
 | `build_notion_manifest` | Generate Notion manifest with 4 database configs + entries |
 | `record_notion_urls` | Track per-database publish progress (supports partial publish) |
 | `complete_trip` | Mark workflow as complete after verification |
 | `get_workflow_status` | Read-only status check (current stage, attempts, artifacts) |
 | `update_profile` | Additive deep-merge into user profile |
-| `list_trips` | Discover all trips with their workflow status |
+| `complete_profile_collection` | Signal profile collection is done, server validates completeness |
+| `list_trips` | Discover all trips, optionally filter by workspace_id or workspace_tag |
 | `cancel_trip` | Abandon a trip |
 | `resolve_blocked` | Human-assisted recovery: retry / skip / override |
+| `resume_trip` | Resume an active session by workspace_id (cross-conversation) |
+| `resume_latest` | Resume the most recently active session, or list multiple to pick |
 
 ### Resources (7)
 
@@ -123,8 +143,12 @@ The agent then regenerates only the stale artifacts and resubmits.
 ## Project Structure
 
 ```
+SETUP.md                 Full setup guide (prerequisites, troubleshooting)
+requirements-mcp.txt     MCP server venv dependencies
+requirements-mcp-dev.txt Dev/test dependencies
+.mcp.json.example        MCP server registration template (copy to .mcp.json)
 tripdb/                  SQLite data layer (schema, 11 CLI commands, seed scripts)
-mcp_server/              MCP server (12 tools, 7 resources, 1 prompt)
+mcp_server/              MCP server (17 tools, 7 resources, 1 prompt)
   server.py                FastMCP entry point
   workflow.py              State machine (stage transitions, regression, recovery)
   validation.py            JSON Schema + rule engine validation
@@ -147,38 +171,34 @@ assets/
 
 ## Quick Start
 
-### 1. Set up the MCP server environment
-
 ```bash
-# Requires Python 3.10+ (MCP SDK requirement)
+# 1. Create venv and install deps
 python3.12 -m venv .venv-mcp
-.venv-mcp/bin/pip install mcp jsonschema pyyaml
+.venv-mcp/bin/pip install -r requirements-mcp.txt
+
+# 2. Initialize the database
+python3 -m tripdb.seed.import_all
+
+# 3. Register the MCP server
+claude mcp add -s project travel-planner -- "$(pwd)/.venv-mcp/bin/python3" -m mcp_server.server
+
+# 4. Verify
+.venv-mcp/bin/python3 -c "from mcp_server.server import mcp; print(f'OK: {len(mcp._tool_manager._tools)} tools')"
 ```
 
-### 2. Register the server
+For the full setup guide (prerequisites, troubleshooting, two-Python-target explanation), see **[SETUP.md](SETUP.md)**.
 
-The `.mcp.json` file is already configured:
+### Use it
 
-```json
-{
-  "mcpServers": {
-    "travel-planner": {
-      "command": ".venv-mcp/bin/python3",
-      "args": ["-m", "mcp_server.server"],
-      "cwd": "<project-root>",
-      "env": { "PYTHONPATH": "<project-root>" }
-    }
-  }
-}
-```
+In Claude Code (or any MCP client), the `travel-planner` server will be available:
 
-### 3. Use it
+> Plan a 5-day trip to Kyoto, Japan, May 10-14. Slow pace, temples and gardens.
 
-In Claude Code (or any MCP client), the `travel-planner` server will be available. Use the `plan_trip` prompt to start an autonomous session:
+To resume a trip in a new conversation:
 
-> Plan a 9-day trip to San Francisco and the California coast, April 17-25.
+> Resume my Kyoto trip.
 
-The agent will autonomously search for POIs, build an itinerary, find restaurants and hotels, validate everything through the rule engine, and publish to Notion.
+The agent's Step 0 Resume Check will call `resume_latest()` and pick up where it left off.
 
 ## Guardrails
 
@@ -198,6 +218,27 @@ Soft constraints (generate warnings):
 | `daily_pace` | 3-5 POIs per day (from profile) |
 | `region_cluster` | Max 3 distinct regions per day |
 | `meal_coverage` | Each day should have lunch + dinner windows |
+
+## Testing
+
+```bash
+# Run full test suite (338 tests, ~1s)
+.venv-mcp/bin/python3 -m pytest tests/ -v --tb=short
+
+# Run MCP workflow E2E tests only
+.venv-mcp/bin/python3 -m pytest tests/test_miami_e2e.py -v
+```
+
+| Suite | What it tests |
+|-------|---------------|
+| `tests/test_miami_e2e.py` | Full MCP workflow E2E: start_trip through complete_trip, bridge sync, session isolation, workspace resumption |
+| `tests/test_pipeline_e2e.py` | Rule engine + manifest builder with SF fixture data |
+| `tests/data/test_e2e.py` | CLI lifecycle (add/schedule/confirm/reschedule/drop/export) |
+| `tests/data/test_bridge.py` | MCP artifact -> SQLite bridge sync (import, dedup, idempotency, workspace) |
+| `tests/data/test_cli.py` | CLI command unit tests (all 11 commands) |
+| `tests/data/test_schema.py` | Database schema constraints, views, triggers |
+| `tests/test_rules.py` | Hard + soft rule engine with edge cases |
+| `tests/test_profile*.py` | Profile loading, validation, completeness, elicitation workflow |
 
 ## Bilingual Output
 

@@ -1,0 +1,25 @@
+{
+  "trip_id": "2026-05-miami-fl",
+  "recommendations": [
+    {
+      "name": "The Setai Miami Beach",
+      "name_cn": "迈阿密海滩瑟泰酒店",
+      "address": "2001 Collins Ave, Miami Beach, FL 33139",
+      "city": "Miami Beach",
+      "check_in": "2026-05-01",
+      "check_out": "2026-05-03",
+      "near_region": "Miami Beach",
+      "price_tier": "premium"
+    },
+    {
+      "name": "Mandarin Oriental Miami",
+      "name_cn": "迈阿密文华东方酒店",
+      "address": "500 Brickell Key Dr, Miami, FL 33131",
+      "city": "Miami",
+      "check_in": "2026-05-03",
+      "check_out": "2026-05-05",
+      "near_region": "Brickell",
+      "price_tier": "premium"
+    }
+  ]
+}

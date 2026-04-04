@@ -1,0 +1,152 @@
+{
+  "trip_id": "2026-05-miami-fl",
+  "start_date": "2026-05-01",
+  "end_date": "2026-05-05",
+  "days": [
+    {
+      "date": "2026-05-01",
+      "day_num": 1,
+      "region": "Miami Beach",
+      "items": [
+        {
+          "candidate_id": "18c1f1013989",
+          "name_en": "South Beach",
+          "name_cn": "南海滩",
+          "style": "nature",
+          "start_time": "08:00",
+          "end_time": "10:00",
+          "duration_minutes": 120
+        },
+        {
+          "candidate_id": "2a029a82ece7",
+          "name_en": "Perez Art Museum Miami",
+          "name_cn": "佩雷斯艺术博物馆",
+          "style": "culture",
+          "start_time": "10:30",
+          "end_time": "12:00",
+          "duration_minutes": 90
+        },
+        {
+          "candidate_id": "bf9296fa47e7",
+          "name_en": "Bayside Marketplace",
+          "name_cn": "海湾市场",
+          "style": "landmark",
+          "start_time": "13:00",
+          "end_time": "14:00",
+          "duration_minutes": 60
+        }
+      ]
+    },
+    {
+      "date": "2026-05-02",
+      "day_num": 2,
+      "region": "Wynwood / Little Havana",
+      "items": [
+        {
+          "candidate_id": "672ed523bf0c",
+          "name_en": "Wynwood Walls",
+          "name_cn": "温伍德墙",
+          "style": "culture",
+          "start_time": "09:00",
+          "end_time": "10:30",
+          "duration_minutes": 90
+        },
+        {
+          "candidate_id": "5849f35f34ef",
+          "name_en": "Miami Design District",
+          "name_cn": "迈阿密设计区",
+          "style": "landmark",
+          "start_time": "11:00",
+          "end_time": "12:30",
+          "duration_minutes": 90
+        },
+        {
+          "candidate_id": "a731ea6c9b66",
+          "name_en": "Little Havana",
+          "name_cn": "小哈瓦那",
+          "style": "culture",
+          "start_time": "13:30",
+          "end_time": "15:30",
+          "duration_minutes": 120
+        }
+      ]
+    },
+    {
+      "date": "2026-05-03",
+      "day_num": 3,
+      "region": "Everglades",
+      "items": [
+        {
+          "candidate_id": "51c54377a06d",
+          "name_en": "Everglades National Park",
+          "name_cn": "大沼泽地国家公园",
+          "style": "nature",
+          "start_time": "07:30",
+          "end_time": "11:30",
+          "duration_minutes": 240
+        },
+        {
+          "candidate_id": "817d6bb7e9be",
+          "name_en": "Coconut Grove",
+          "name_cn": "椰林区",
+          "style": "landmark",
+          "start_time": "13:00",
+          "end_time": "14:30",
+          "duration_minutes": 90,
+          "preceding_travel_minutes": 60
+        }
+      ]
+    },
+    {
+      "date": "2026-05-04",
+      "day_num": 4,
+      "region": "Key Biscayne",
+      "items": [
+        {
+          "candidate_id": "8dc24ea4387d",
+          "name_en": "Key Biscayne Beach",
+          "name_cn": "比斯坎湾海滩",
+          "style": "nature",
+          "start_time": "08:00",
+          "end_time": "10:30",
+          "duration_minutes": 150
+        },
+        {
+          "candidate_id": "a2d1a0227418",
+          "name_en": "Bill Baggs Cape Florida State Park",
+          "name_cn": "比尔巴格斯州立公园",
+          "style": "nature",
+          "start_time": "11:00",
+          "end_time": "13:00",
+          "duration_minutes": 120
+        },
+        {
+          "candidate_id": "4ca1e4561b18",
+          "name_en": "Vizcaya Museum and Gardens",
+          "name_cn": "维兹卡亚博物馆",
+          "style": "landmark",
+          "start_time": "14:00",
+          "end_time": "15:30",
+          "duration_minutes": 120,
+          "preceding_travel_minutes": 30
+        }
+      ]
+    },
+    {
+      "date": "2026-05-05",
+      "day_num": 5,
+      "region": "Miami",
+      "items": [
+        {
+          "candidate_id": "9524cf53d982",
+          "name_en": "Jungle Island",
+          "name_cn": "丛林岛",
+          "style": "nature",
+          "start_time": "09:00",
+          "end_time": "11:00",
+          "duration_minutes": 120
+        }
+      ]
+    }
+  ]
+}

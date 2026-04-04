@@ -4,7 +4,19 @@ All fixtures pass their respective JSON Schema contracts.
 """
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from tripdb.bridge import candidate_id
+
+_DIR = Path(__file__).resolve().parent
+
+# ── Miami fixtures (loaded from JSON) ────────────────────
+
+MIAMI_POI_CANDIDATES = json.loads((_DIR / "miami_poi_candidates.json").read_text())
+MIAMI_ITINERARY = json.loads((_DIR / "miami_itinerary.json").read_text())
+MIAMI_RESTAURANTS = json.loads((_DIR / "miami_restaurants.json").read_text())
+MIAMI_HOTELS = json.loads((_DIR / "miami_hotels.json").read_text())
 
 # ── POI Candidates (5 POIs) ───────────────────────────────
 

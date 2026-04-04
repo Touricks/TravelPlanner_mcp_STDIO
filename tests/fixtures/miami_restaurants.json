@@ -1,0 +1,106 @@
+{
+  "trip_id": "2026-05-miami-fl",
+  "recommendations": [
+    {
+      "day_num": 1,
+      "meal_type": "lunch",
+      "name_en": "Joe's Stone Crab",
+      "name_cn": "乔氏石蟹",
+      "cuisine": "Seafood",
+      "price_tier": "premium",
+      "address": "11 Washington Ave, Miami Beach, FL 33139",
+      "near_poi": "South Beach",
+      "reservation_required": true
+    },
+    {
+      "day_num": 1,
+      "meal_type": "dinner",
+      "name_en": "Juvia",
+      "name_cn": "朱维亚",
+      "cuisine": "French-Japanese-Peruvian",
+      "price_tier": "premium",
+      "address": "1111 Lincoln Rd, Miami Beach, FL 33139",
+      "near_poi": "South Beach"
+    },
+    {
+      "day_num": 2,
+      "meal_type": "lunch",
+      "name_en": "Salty Donut",
+      "name_cn": "咸甜甜圈",
+      "cuisine": "American",
+      "price_tier": "budget",
+      "address": "50 NW 23rd St, Miami, FL 33127",
+      "near_poi": "Wynwood Walls"
+    },
+    {
+      "day_num": 2,
+      "meal_type": "dinner",
+      "name_en": "Versailles Restaurant",
+      "name_cn": "凡尔赛餐厅",
+      "cuisine": "Cuban",
+      "price_tier": "moderate",
+      "address": "3555 SW 8th St, Miami, FL 33135",
+      "near_poi": "Little Havana"
+    },
+    {
+      "day_num": 3,
+      "meal_type": "lunch",
+      "name_en": "Robert Is Here Fruit Stand",
+      "name_cn": "罗伯特水果摊",
+      "cuisine": "American",
+      "price_tier": "budget",
+      "address": "19200 SW 344th St, Homestead, FL 33034",
+      "near_poi": "Everglades National Park"
+    },
+    {
+      "day_num": 3,
+      "meal_type": "dinner",
+      "name_en": "GreenStreet Cafe",
+      "name_cn": "绿街咖啡",
+      "cuisine": "American",
+      "price_tier": "moderate",
+      "address": "3468 Main Hwy, Coconut Grove, FL 33133",
+      "near_poi": "Coconut Grove"
+    },
+    {
+      "day_num": 4,
+      "meal_type": "lunch",
+      "name_en": "Boater's Grill",
+      "name_cn": "船夫烧烤",
+      "cuisine": "Seafood",
+      "price_tier": "moderate",
+      "address": "1200 S Crandon Blvd, Key Biscayne, FL 33149",
+      "near_poi": "Bill Baggs Cape Florida State Park"
+    },
+    {
+      "day_num": 4,
+      "meal_type": "dinner",
+      "name_en": "Crust",
+      "name_cn": "脆皮",
+      "cuisine": "Italian",
+      "price_tier": "moderate",
+      "address": "668 NE 59th Terrace, Miami, FL 33137",
+      "near_poi": "Miami Design District"
+    },
+    {
+      "day_num": 5,
+      "meal_type": "lunch",
+      "name_en": "La Sandwicherie",
+      "name_cn": "三明治小铺",
+      "cuisine": "French",
+      "price_tier": "budget",
+      "address": "229 14th St, Miami Beach, FL 33139",
+      "near_poi": "Jungle Island"
+    },
+    {
+      "day_num": 5,
+      "meal_type": "dinner",
+      "name_en": "Komodo",
+      "name_cn": "科莫多",
+      "cuisine": "Asian Fusion",
+      "price_tier": "premium",
+      "address": "801 Brickell Ave, Miami, FL 33131",
+      "near_poi": "Bayside Marketplace"
+    }
+  ]
+}

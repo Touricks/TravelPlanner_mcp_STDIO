@@ -283,8 +283,17 @@ async def _run_codex_search(
         while True:
             await asyncio.sleep(30)
             elapsed += 30
-            if ctx:
-                await ctx.info(f"Search in progress... ({elapsed}s elapsed)")
+            try:
+                if ctx:
+                    await ctx.info(f"Search in progress... ({elapsed}s elapsed)")
+                    await ctx.report_progress(
+                        progress=elapsed,
+                        total=config.CODEX_SEARCH_TIMEOUT_SECONDS,
+                        message=f"Codex discovery ({elapsed}s elapsed)",
+                    )
+                log.info("Heartbeat: codex search %ds elapsed", elapsed)
+            except Exception:
+                pass
 
     hb = asyncio.create_task(_heartbeat())
     try:
@@ -299,6 +308,10 @@ async def _run_codex_search(
         )
     finally:
         hb.cancel()
+        try:
+            await hb
+        except asyncio.CancelledError:
+            pass
 
     if proc.returncode != 0:
         stderr_text = stderr_bytes.decode(errors="replace")[:500]
@@ -612,6 +625,7 @@ async def search_pois(session_id: str, ctx: Context) -> dict[str, Any]:
         return {"status": "blocked", "reason": f"Trip is {state.status}"}
 
     await ctx.info("Starting POI search — this may take several minutes...")
+    await ctx.report_progress(progress=0, total=4, message="Starting codex discovery")
 
     search_prompt = _build_poi_search_prompt(state)
     try:
@@ -661,6 +675,7 @@ async def search_restaurants(session_id: str, ctx: Context) -> dict[str, Any]:
         return {"status": "blocked", "reason": f"Trip is {state.status}"}
 
     await ctx.info("Starting restaurant search — this may take several minutes...")
+    await ctx.report_progress(progress=0, total=4, message="Starting codex discovery")
 
     search_prompt = _build_restaurant_search_prompt(state)
     try:
@@ -714,6 +729,7 @@ async def search_hotels(session_id: str, ctx: Context) -> dict[str, Any]:
         return {"status": "blocked", "reason": f"Trip is {state.status}"}
 
     await ctx.info("Starting hotel search — this may take several minutes...")
+    await ctx.report_progress(progress=0, total=4, message="Starting codex discovery")
 
     search_prompt = _build_hotel_search_prompt(state)
     try:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -70,7 +71,7 @@ STAGE_INPUT_ARTIFACTS: dict[str, list[str]] = {
 
 MAX_ATTEMPTS_PER_STAGE = 3
 MAX_REGRESSIONS_PER_TRIP = 2
-CODEX_SEARCH_TIMEOUT_SECONDS = 300
+CODEX_SEARCH_TIMEOUT_SECONDS = int(os.environ.get("CODEX_SEARCH_TIMEOUT_SECONDS", "300"))
 TRANSFORM_TIMEOUT_SECONDS = 60
 SEARCH_TIMEOUT_SECONDS = 600  # deprecated alias — remove after callers migrate
 SESSION_TTL_HOURS = 24

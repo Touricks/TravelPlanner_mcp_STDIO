@@ -1,7 +1,7 @@
 """E2E tests for MCP workflow + bridge.
 
 Calls MCP tool functions directly (no server required).
-Mocks: _run_claude_search (claude -p subprocess).
+Mocks: _run_codex_search + _run_claude_transform (Codex/claude subprocesses).
 Skips: Codex review (skip_codex=True).
 Uses: temp directories for sessions, profile, SQLite DB.
 """
@@ -54,14 +54,29 @@ def mcp_env(tmp_path, monkeypatch):
     return tmp_path
 
 
+class _MockContext:
+    """Minimal stand-in for FastMCP Context in tests."""
+
+    async def info(self, msg): pass
+    async def error(self, msg): pass
+    async def debug(self, msg): pass
+    async def report_progress(self, **kw): pass
+
+
+MOCK_CTX = _MockContext()
+
+
 @pytest.fixture
 def mock_search(monkeypatch):
-    """Mock _run_claude_search with canned artifacts."""
+    """Mock _run_codex_search and _run_claude_transform with canned artifacts."""
     from tests.fixtures import SAMPLE_HOTELS, SAMPLE_POI_CANDIDATES, SAMPLE_RESTAURANTS
 
     call_log = []
 
-    async def fake_search(prompt, schema_path):
+    async def fake_codex_search(prompt, ctx=None):
+        return "mock codex search results"
+
+    async def fake_transform(transform_prompt, schema_path):
         stage = schema_path.stem
         call_log.append(stage)
         data = {
@@ -71,7 +86,8 @@ def mock_search(monkeypatch):
         }
         return data[stage]
 
-    monkeypatch.setattr("mcp_server.server._run_claude_search", fake_search)
+    monkeypatch.setattr("mcp_server.server._run_codex_search", fake_codex_search)
+    monkeypatch.setattr("mcp_server.server._run_claude_transform", fake_transform)
     return call_log
 
 
@@ -153,7 +169,7 @@ class TestMCPWorkflowE2E:
             complete_profile_collection(sid)
 
         # Stage 1: POI Search (mocked)
-        r = _run_async(search_pois(sid))
+        r = _run_async(search_pois(sid, MOCK_CTX))
         assert r["status"] == "complete"
         assert r["candidates_count"] == 5
 
@@ -162,11 +178,11 @@ class TestMCPWorkflowE2E:
         assert r["status"] == "accepted"
 
         # Stage 3: Restaurant search (mocked)
-        r = _run_async(search_restaurants(sid))
+        r = _run_async(search_restaurants(sid, MOCK_CTX))
         assert r["status"] == "complete"
 
         # Stage 4: Hotel search (mocked)
-        r = _run_async(search_hotels(sid))
+        r = _run_async(search_hotels(sid, MOCK_CTX))
         assert r["status"] == "complete"
 
         # Stage 5: Review (skip codex)
@@ -228,10 +244,10 @@ class TestMCPWorkflowE2E:
             from mcp_server.server import complete_profile_collection
             complete_profile_collection(sid)
 
-        _run_async(search_pois(sid))
+        _run_async(search_pois(sid, MOCK_CTX))
         submit_artifact(sid, "scheduling", SAMPLE_ITINERARY)
-        _run_async(search_restaurants(sid))
-        _run_async(search_hotels(sid))
+        _run_async(search_restaurants(sid, MOCK_CTX))
+        _run_async(search_hotels(sid, MOCK_CTX))
         run_review(sid, skip_codex=True)
 
         # Check bridge_sync table
@@ -303,7 +319,7 @@ class TestMCPWorkflowE2E:
             from mcp_server.server import complete_profile_collection
             complete_profile_collection(sid)
 
-        _run_async(search_pois(sid))
+        _run_async(search_pois(sid, MOCK_CTX))
 
         # Submit invalid: empty days array
         bad = {

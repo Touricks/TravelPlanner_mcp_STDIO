@@ -25,9 +25,9 @@ This project uses the following tools. Skills not listed here are global noise �
 - **Failure behavior:** Manual export
 
 #### codex:rescue
-- **Purpose in this project:** Codex-assisted review, diagnosis, and search enrichment (Stage 2/4/5)
-- **Can do:** Delegate investigation, review, or search tasks to Codex CLI
-- **Cannot do:** Write to project files directly
+- **Purpose in this project:** Codex-assisted review and diagnosis (Stage 5 only)
+- **Can do:** Delegate review or diagnostic tasks to Codex CLI
+- **Cannot do:** WebSearch (tools allowlist is Bash only), write to project files
 - **Input constraints:** Codex CLI must be installed
 - **Chain pattern:** Generate artifact → codex:rescue review → parse feedback → iterate
 - **Failure behavior:** Use Claude self-review or skip enrichment step
@@ -99,13 +99,15 @@ This project uses the following tools. Skills not listed here are global noise �
 ### CLI Tools
 
 #### claude -p (pipe mode)
-- **Purpose in this project:** Pipeline stage orchestration with schema-enforced structured output
-- **Invocation:** `claude -p "stage prompt" --output-format json --json-schema "$(cat contract.json)" --allowedTools "tool1,tool2" --max-turns N`
+- **Purpose in this project:** Structured transformation of raw data into schema-enforced JSON output
+- **Invocation:** `claude -p "transform prompt" --bare --output-format json --json-schema "$(cat contract.json)" --max-turns N`
 - **Constraints:**
+  - Always use `--bare` to prevent `.mcp.json` auto-discovery (BUG-004 mitigation)
   - One JSON Schema per call (structured output)
   - Schema complexity: ≤20 strict tools/request, ≤24 optional params total, ≤16 anyOf unions
   - Use `--max-turns` and `--max-budget-usd` to bound each stage
   - Extract result via `jq '.structured_output'`
+  - Do NOT use `--allowedTools WebSearch` — search is handled by `/call-codex`, not `claude -p`
 
 #### Codex CLI
 - **Purpose in this project:** Soft-judgment review of generated artifacts

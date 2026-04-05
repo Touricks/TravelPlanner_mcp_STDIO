@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Optional
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -265,32 +265,79 @@ def _filter_answered_questions(questions: list[dict], profile: dict) -> list[dic
 
 
 # ---------------------------------------------------------------------------
-# Server-side search via claude -p subprocess
+# Server-side search: Codex discovery + claude -p transformation
 # ---------------------------------------------------------------------------
 
-async def _run_claude_search(prompt: str, schema_path: Path) -> dict:
-    """Run claude -p with WebSearch as async subprocess."""
+async def _run_codex_search(
+    prompt: str, ctx: Optional[Context] = None,
+) -> str:
+    """Run codex exec for web search discovery. Returns raw stdout text."""
+    proc = await asyncio.create_subprocess_exec(
+        "codex", "exec", "--skip-git-repo-check", prompt,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    async def _heartbeat() -> None:
+        elapsed = 0
+        while True:
+            await asyncio.sleep(30)
+            elapsed += 30
+            if ctx:
+                await ctx.info(f"Search in progress... ({elapsed}s elapsed)")
+
+    hb = asyncio.create_task(_heartbeat())
+    try:
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+            proc.communicate(), timeout=config.CODEX_SEARCH_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        raise SearchError(
+            f"Codex search timed out after {config.CODEX_SEARCH_TIMEOUT_SECONDS}s"
+        )
+    finally:
+        hb.cancel()
+
+    if proc.returncode != 0:
+        stderr_text = stderr_bytes.decode(errors="replace")[:500]
+        raise SearchError(f"codex exec exited with code {proc.returncode}: {stderr_text}")
+
+    stdout_text = stdout_bytes.decode(errors="replace").strip()
+    if not stdout_text:
+        raise SearchError("Codex search returned empty output")
+
+    return stdout_text
+
+
+async def _run_claude_transform(
+    transform_prompt: str, schema_path: Path,
+) -> dict:
+    """Run claude -p --bare for structured transformation only (no web search)."""
     claude_cli = config.find_claude_cli()
     schema = schema_path.read_text(encoding="utf-8")
 
     proc = await asyncio.create_subprocess_exec(
-        claude_cli, "-p", prompt,
+        claude_cli, "-p", transform_prompt,
+        "--bare",
         "--output-format", "json",
         "--json-schema", schema,
-        "--allowedTools", "WebSearch",
-        "--max-turns", "10",
+        "--max-turns", "3",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
 
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            proc.communicate(), timeout=config.SEARCH_TIMEOUT_SECONDS
+            proc.communicate(), timeout=config.TRANSFORM_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
         proc.kill()
         await proc.wait()
-        raise SearchError(f"Search timed out after {config.SEARCH_TIMEOUT_SECONDS}s")
+        raise SearchError(
+            f"Transform timed out after {config.TRANSFORM_TIMEOUT_SECONDS}s"
+        )
 
     if proc.returncode != 0:
         stderr_text = stderr_bytes.decode(errors="replace")[:500]
@@ -300,13 +347,12 @@ async def _run_claude_search(prompt: str, schema_path: Path) -> dict:
     try:
         output = json.loads(stdout_text)
     except json.JSONDecodeError as e:
-        raise SearchError(f"Failed to parse claude -p output as JSON: {e}")
+        raise SearchError(f"Failed to parse transform output as JSON: {e}")
 
     return output.get("structured_output", output)
 
 
 def _build_poi_search_prompt(state: WorkflowState) -> str:
-    """Build a self-contained POI search prompt for subprocess."""
     import yaml
 
     prefs = _load_trip_prefs(state.trip_id)
@@ -315,52 +361,108 @@ def _build_poi_search_prompt(state: WorkflowState) -> str:
     profile_yaml = yaml.dump(profile, allow_unicode=True, default_flow_style=False)
 
     return (
-        f"You are a travel POI search agent. Find Points of Interest for a trip to {destination}.\n\n"
+        f"You are a travel research agent. Search the web for Points of Interest "
+        f"for a trip to {destination}.\n\n"
         f"## Traveler Profile\n{profile_yaml}\n\n"
-        f"## Instructions\n"
-        f"1. Search for POIs matching the traveler's interests.\n"
-        f"2. For each POI, provide: name in English and Chinese, style category, "
-        f"full address, typical visit duration, operating hours, description.\n"
-        f"3. Include all wishlist items with their stated priority.\n"
-        f"4. Add agent-suggested POIs that match the profile.\n"
-        f"5. Aim for 30-50 candidate POIs.\n"
-        f"6. Verify operating hours are current.\n\n"
-        f"Return a JSON object matching the poi-candidates schema."
+        f"## What to Find\n"
+        f"For each POI, you MUST provide all of the following:\n"
+        f"- Name in English AND Chinese (name_en, name_cn)\n"
+        f"- Style category (nature, tech, culture, food, landmark, or coffee)\n"
+        f"- Full street address and city\n"
+        f"- Latitude and longitude coordinates\n"
+        f"- Current operating hours\n"
+        f"- Typical visit duration in minutes\n"
+        f"- Brief description\n"
+        f"- Source URL where you found the information\n\n"
+        f"## Requirements\n"
+        f"- Include all wishlist items from the profile with their stated priority.\n"
+        f"- Add agent-suggested POIs that match the traveler's interests.\n"
+        f"- Aim for 30-50 candidate POIs total.\n"
+        f"- Verify operating hours are current.\n"
+    )
+
+
+def _build_poi_transform_prompt(raw_text: str) -> str:
+    return (
+        f"Structure the following raw POI research findings into the required JSON format.\n\n"
+        f"## Raw Findings\n{raw_text}\n\n"
+        f"## Rules\n"
+        f"- Map each finding to a candidate object in the schema.\n"
+        f"- Do NOT invent values for fields absent from the source text.\n"
+        f"- Omit optional fields rather than guessing.\n"
+        f"- Generate candidate_id as sha256(name_en|address)[:12].\n"
     )
 
 
 def _build_restaurant_search_prompt(state: WorkflowState) -> str:
-    """Build a self-contained restaurant search prompt for subprocess."""
     itinerary = artifact_store.load_artifact(state.session_id, "itinerary") or {}
     itinerary_json = json.dumps(itinerary, indent=2, ensure_ascii=False)
 
     return (
-        f"You are a restaurant recommendation agent. Given this itinerary, "
-        f"recommend restaurants for each day.\n\n"
+        f"You are a restaurant research agent. Search the web for restaurant "
+        f"recommendations based on this travel itinerary.\n\n"
         f"## Itinerary\n{itinerary_json}\n\n"
-        f"## Rules\n"
-        f"- For each day, recommend one lunch and one dinner restaurant.\n"
+        f"## What to Find\n"
+        f"For each restaurant, you MUST provide all of the following:\n"
+        f"- Name in English AND Chinese (name_en, name_cn)\n"
+        f"- Cuisine type\n"
+        f"- Full street address\n"
+        f"- Price tier (budget, moderate, or premium)\n"
+        f"- Whether reservation is required\n"
+        f"- Booking URL if available\n"
+        f"- Which day number and meal (lunch or dinner) this restaurant serves\n"
+        f"- Which nearby POI from the itinerary it is close to (near_poi)\n\n"
+        f"## Requirements\n"
+        f"- Recommend one lunch and one dinner restaurant per day.\n"
         f"- Restaurants must be geographically close to that day's scheduled POIs.\n"
         f"- Include bilingual names (English + Chinese).\n"
-        f"- Note if reservation is required.\n\n"
-        f"Return a JSON object matching the restaurants schema."
+    )
+
+
+def _build_restaurant_transform_prompt(raw_text: str, itinerary: dict) -> str:
+    itin_json = json.dumps(itinerary, indent=2, ensure_ascii=False)
+    return (
+        f"Structure the following raw restaurant research findings into the required JSON format.\n\n"
+        f"## Raw Findings\n{raw_text}\n\n"
+        f"## Itinerary (for cross-referencing day numbers and regions)\n{itin_json}\n\n"
+        f"## Rules\n"
+        f"- Each recommendation must include day_num and near_poi from the itinerary.\n"
+        f"- Do NOT invent values for fields absent from the source text.\n"
+        f"- Omit optional fields rather than guessing.\n"
     )
 
 
 def _build_hotel_search_prompt(state: WorkflowState) -> str:
-    """Build a self-contained hotel search prompt for subprocess."""
     itinerary = artifact_store.load_artifact(state.session_id, "itinerary") or {}
     itinerary_json = json.dumps(itinerary, indent=2, ensure_ascii=False)
 
     return (
-        f"You are a hotel recommendation agent. Given this itinerary, "
-        f"recommend hotels for each night.\n\n"
+        f"You are a hotel research agent. Search the web for hotel "
+        f"recommendations based on this travel itinerary.\n\n"
         f"## Itinerary\n{itinerary_json}\n\n"
-        f"## Rules\n"
+        f"## What to Find\n"
+        f"For each hotel, you MUST provide all of the following:\n"
+        f"- Name in English AND Chinese where possible (name_en, name_cn)\n"
+        f"- Full street address\n"
+        f"- Price tier (budget, moderate, or premium)\n"
+        f"- Booking URL if available\n"
+        f"- Which region cluster from the itinerary it covers\n"
+        f"- Which night range (check-in and check-out dates)\n\n"
+        f"## Requirements\n"
         f"- Group nights by region cluster from the itinerary.\n"
         f"- Include bilingual names where possible.\n"
-        f"- Include booking URLs if available.\n\n"
-        f"Return a JSON object matching the hotels schema."
+    )
+
+
+def _build_hotel_transform_prompt(raw_text: str, itinerary: dict) -> str:
+    itin_json = json.dumps(itinerary, indent=2, ensure_ascii=False)
+    return (
+        f"Structure the following raw hotel research findings into the required JSON format.\n\n"
+        f"## Raw Findings\n{raw_text}\n\n"
+        f"## Itinerary (for cross-referencing region clusters and nights)\n{itin_json}\n\n"
+        f"## Rules\n"
+        f"- Do NOT invent values for fields absent from the source text.\n"
+        f"- Omit optional fields rather than guessing.\n"
     )
 
 
@@ -503,21 +605,31 @@ def submit_artifact(
 # Server-side search tools (3)
 # ---------------------------------------------------------------------------
 
-@mcp.tool(description="Search for POIs via WebSearch (server-side). Agent does NOT use WebSearch directly.")
-async def search_pois(session_id: str) -> dict[str, Any]:
+@mcp.tool(description="Search for POIs via Codex WebSearch (server-side). Agent does NOT use WebSearch directly.")
+async def search_pois(session_id: str, ctx: Context) -> dict[str, Any]:
     state = WorkflowState.load(session_id)
     if state.status != "active":
         return {"status": "blocked", "reason": f"Trip is {state.status}"}
 
-    prompt = _build_poi_search_prompt(state)
-    schema_path = config.CONTRACTS_DIR / "poi-candidates.json"
+    await ctx.info("Starting POI search — this may take several minutes...")
 
+    search_prompt = _build_poi_search_prompt(state)
     try:
-        result = await _run_claude_search(prompt, schema_path)
+        raw_text = await _run_codex_search(search_prompt, ctx=ctx)
     except SearchError as e:
-        log.error("POI search failed: %s", e)
+        await ctx.error(f"POI search failed: {e}")
         return {"status": "search_failed", "error": str(e), "partial_results": []}
 
+    await ctx.report_progress(progress=1, total=4, message="Structuring results")
+    transform_prompt = _build_poi_transform_prompt(raw_text)
+    schema_path = config.CONTRACTS_DIR / "poi-candidates.json"
+    try:
+        result = await _run_claude_transform(transform_prompt, schema_path)
+    except SearchError as e:
+        await ctx.error(f"POI transform failed: {e}")
+        return {"status": "search_failed", "error": str(e), "partial_results": []}
+
+    await ctx.report_progress(progress=2, total=4, message="Validating")
     violations = validation.validate_schema("poi_search", result)
     if violations:
         return {"status": "validation_failed", "violations": violations}
@@ -525,12 +637,13 @@ async def search_pois(session_id: str) -> dict[str, Any]:
     artifact_store.save_artifact(session_id, "poi_search", result)
     state.complete_stage("poi_search")
 
-    # Bridge: import POI candidates to SQLite
+    await ctx.report_progress(progress=3, total=4, message="Importing to database")
     from tripdb.bridge import import_pois as _import_pois
     bridge_result = _bridge_call(_import_pois, state.session_id, state.trip_id, result)
     if bridge_result:
         artifact_store.save_artifact(session_id, "candidate-map", bridge_result.get("candidate_map", {}))
 
+    await ctx.report_progress(progress=4, total=4, message="Search complete")
     candidates = result.get("candidates", [])
     return {
         "status": "complete",
@@ -541,21 +654,32 @@ async def search_pois(session_id: str) -> dict[str, Any]:
     }
 
 
-@mcp.tool(description="Search for restaurants via WebSearch (server-side).")
-async def search_restaurants(session_id: str) -> dict[str, Any]:
+@mcp.tool(description="Search for restaurants via Codex WebSearch (server-side).")
+async def search_restaurants(session_id: str, ctx: Context) -> dict[str, Any]:
     state = WorkflowState.load(session_id)
     if state.status != "active":
         return {"status": "blocked", "reason": f"Trip is {state.status}"}
 
-    prompt = _build_restaurant_search_prompt(state)
-    schema_path = config.CONTRACTS_DIR / "restaurants.json"
+    await ctx.info("Starting restaurant search — this may take several minutes...")
 
+    search_prompt = _build_restaurant_search_prompt(state)
     try:
-        result = await _run_claude_search(prompt, schema_path)
+        raw_text = await _run_codex_search(search_prompt, ctx=ctx)
     except SearchError as e:
-        log.error("Restaurant search failed: %s", e)
+        await ctx.error(f"Restaurant search failed: {e}")
         return {"status": "search_failed", "error": str(e), "partial_results": []}
 
+    await ctx.report_progress(progress=1, total=4, message="Structuring results")
+    itinerary = artifact_store.load_artifact(state.session_id, "itinerary") or {}
+    transform_prompt = _build_restaurant_transform_prompt(raw_text, itinerary)
+    schema_path = config.CONTRACTS_DIR / "restaurants.json"
+    try:
+        result = await _run_claude_transform(transform_prompt, schema_path)
+    except SearchError as e:
+        await ctx.error(f"Restaurant transform failed: {e}")
+        return {"status": "search_failed", "error": str(e), "partial_results": []}
+
+    await ctx.report_progress(progress=2, total=4, message="Validating")
     violations = validation.validate_stage("restaurants", result, session_id)
     if violations:
         return {"status": "validation_failed", "violations": violations}
@@ -563,7 +687,7 @@ async def search_restaurants(session_id: str) -> dict[str, Any]:
     artifact_store.save_artifact(session_id, "restaurants", result)
     state.complete_stage("restaurants")
 
-    # Bridge: import restaurants to SQLite
+    await ctx.report_progress(progress=3, total=4, message="Importing to database")
     from tripdb.bridge import import_restaurants as _import_rest
     itin = artifact_store.load_artifact(session_id, "itinerary") or {}
     trip_start = itin.get("start_date", "")
@@ -573,6 +697,7 @@ async def search_restaurants(session_id: str) -> dict[str, Any]:
     br = _bridge_call(_import_rest, state.session_id, state.trip_id, result,
                       trip_start)
 
+    await ctx.report_progress(progress=4, total=4, message="Search complete")
     recs = result.get("recommendations", [])
     return {
         "status": "complete",
@@ -582,21 +707,32 @@ async def search_restaurants(session_id: str) -> dict[str, Any]:
     }
 
 
-@mcp.tool(description="Search for hotels via WebSearch (server-side).")
-async def search_hotels(session_id: str) -> dict[str, Any]:
+@mcp.tool(description="Search for hotels via Codex WebSearch (server-side).")
+async def search_hotels(session_id: str, ctx: Context) -> dict[str, Any]:
     state = WorkflowState.load(session_id)
     if state.status != "active":
         return {"status": "blocked", "reason": f"Trip is {state.status}"}
 
-    prompt = _build_hotel_search_prompt(state)
-    schema_path = config.CONTRACTS_DIR / "hotels.json"
+    await ctx.info("Starting hotel search — this may take several minutes...")
 
+    search_prompt = _build_hotel_search_prompt(state)
     try:
-        result = await _run_claude_search(prompt, schema_path)
+        raw_text = await _run_codex_search(search_prompt, ctx=ctx)
     except SearchError as e:
-        log.error("Hotel search failed: %s", e)
+        await ctx.error(f"Hotel search failed: {e}")
         return {"status": "search_failed", "error": str(e), "partial_results": []}
 
+    await ctx.report_progress(progress=1, total=4, message="Structuring results")
+    itinerary = artifact_store.load_artifact(state.session_id, "itinerary") or {}
+    transform_prompt = _build_hotel_transform_prompt(raw_text, itinerary)
+    schema_path = config.CONTRACTS_DIR / "hotels.json"
+    try:
+        result = await _run_claude_transform(transform_prompt, schema_path)
+    except SearchError as e:
+        await ctx.error(f"Hotel transform failed: {e}")
+        return {"status": "search_failed", "error": str(e), "partial_results": []}
+
+    await ctx.report_progress(progress=2, total=4, message="Validating")
     violations = validation.validate_stage("hotels", result, session_id)
     if violations:
         return {"status": "validation_failed", "violations": violations}
@@ -604,10 +740,11 @@ async def search_hotels(session_id: str) -> dict[str, Any]:
     artifact_store.save_artifact(session_id, "hotels", result)
     state.complete_stage("hotels")
 
-    # Bridge: import hotels to SQLite
+    await ctx.report_progress(progress=3, total=4, message="Importing to database")
     from tripdb.bridge import import_hotels as _import_hotels
     br = _bridge_call(_import_hotels, state.session_id, state.trip_id, result)
 
+    await ctx.report_progress(progress=4, total=4, message="Search complete")
     recs = result.get("recommendations", [])
     return {
         "status": "complete",

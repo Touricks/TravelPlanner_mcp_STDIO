@@ -19,7 +19,7 @@ Requirements: see PRD.md
 - Bilingual output required: populate both English and Chinese fields on all Notion entries
 - Codex review prompts live in assets/prompts/ and produce structured YAML reports (accept/flag/reject per item)
 - All MCP tools use session_id (not trip_id) as primary key; start_trip returns session_id; artifacts stored in sessions/{session_id}/; backward compat via trip_id scan
-- Agent does NOT use WebSearch directly; search stages (poi_search, restaurants, hotels) use server-side tools (search_pois, search_restaurants, search_hotels) that run claude -p subprocess with --allowedTools WebSearch
+- Agent does NOT use WebSearch directly; search stages (poi_search, restaurants, hotels) use server-side tools (search_pois, search_restaurants, search_hotels) that delegate to `/call-codex` for web search discovery, then `claude -p --bare` for structured transformation
 - Search results and workflow artifacts are session-scoped in sessions/{session_id}/, NOT in assets/data/; assets/data/ is reserved for legacy pipeline/run.sh only
 - Use `from __future__ import annotations` and `Optional[X]` instead of `X | None` — system Python is 3.9
 - Time overlap checker must suppress parent-child relationships via parent_item_index; nested activities are intentional overlaps, not violations
@@ -32,7 +32,7 @@ Requirements: see PRD.md
 - Registered in `.mcp.json` as `travel-planner` server; 18 tools, 7 resources, 1 prompt
 - Workflow state persisted atomically to `sessions/{session_id}/workflow-state.json`
 - Use the `plan_trip` MCP prompt to trigger autonomous trip planning
-- Search tools (`search_pois`, `search_restaurants`, `search_hotels`) run `claude -p` as async subprocess; agent never calls WebSearch directly
+- Search tools (`search_pois`, `search_restaurants`, `search_hotels`) delegate to `/call-codex` for web search discovery + `claude -p --bare` for structured transformation; agent never calls WebSearch directly
 - `submit_artifact` validates against JSON Schema + rule engine before saving; never bypass it
 - `run_review` is server-side only — rule engine + Codex run in Python, not delegated to agent
 - REVIEW regression returns machine-readable remediation payload with stale_artifacts list
@@ -48,5 +48,5 @@ Requirements: see PRD.md
 - Stage artifacts flow: profile.yaml → poi-candidates.yaml → itinerary.yaml → restaurants.yaml + hotels.yaml → review-report.yaml → Notion
 - MCP workflow: `start_trip` → loop(`get_next_action` → generate → `submit_artifact`) → `run_review` → `build_notion_manifest` → Notion MCP → `complete_trip`
 - Use /progress to log session outcomes
-- Use /codex:rescue for Codex-assisted review and search enrichment
+- Use /codex:rescue for Codex-assisted review and diagnosis (no WebSearch — cannot do search enrichment)
 - Design documents go in docs/; session artifacts go in sessions/{session_id}/

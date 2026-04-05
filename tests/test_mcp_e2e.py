@@ -87,6 +87,41 @@ def _run_async(coro):
 # ── Happy Path ─────────────────────────────────────────────
 
 
+class TestStartTripDateValidation:
+    """BUG-001: start_trip rejects invalid dates before creating any state."""
+
+    def test_invalid_format_rejected(self, mcp_env):
+        from mcp_server.server import start_trip
+        r = start_trip("San Francisco", "next-week", "2026-04-25")
+        assert r["status"] == "error"
+        assert r["error"] == "invalid_dates"
+        assert any(v["rule"] == "date_format" for v in r["violations"])
+
+    def test_end_before_start_rejected(self, mcp_env):
+        from mcp_server.server import start_trip
+        r = start_trip("San Francisco", "2026-04-25", "2026-04-17")
+        assert r["status"] == "error"
+        assert any(v["rule"] == "date_range" for v in r["violations"])
+
+    def test_excessive_duration_rejected(self, mcp_env):
+        from mcp_server.server import start_trip
+        r = start_trip("San Francisco", "2026-01-01", "2026-12-31")
+        assert r["status"] == "error"
+        assert any(v["rule"] == "date_duration" for v in r["violations"])
+
+    def test_empty_string_rejected(self, mcp_env):
+        from mcp_server.server import start_trip
+        r = start_trip("San Francisco", "", "2026-04-25")
+        assert r["status"] == "error"
+        assert any(v["rule"] == "date_format" for v in r["violations"])
+
+    def test_valid_dates_accepted(self, mcp_env):
+        from mcp_server.server import start_trip
+        r = start_trip("San Francisco", "2026-04-17", "2026-04-25")
+        assert r.get("status") != "error"
+        assert "session_id" in r
+
+
 class TestMCPWorkflowE2E:
     """Full workflow: start → search → schedule → review → notion → complete."""
 

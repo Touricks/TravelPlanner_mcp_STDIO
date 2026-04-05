@@ -74,6 +74,58 @@ class TestTripPrefs:
         assert merged["identity"]["role"] == "traveler"
 
 
+class TestTripPrefsDateGuard:
+    def test_invalid_start_date_raises(self):
+        with pytest.raises(ValueError, match="start_date must be ISO format"):
+            create_trip_prefs("Tokyo", "next week", "2026-05-10")
+
+    def test_invalid_end_date_raises(self):
+        with pytest.raises(ValueError, match="end_date must be ISO format"):
+            create_trip_prefs("Tokyo", "2026-05-01", "sometime")
+
+    def test_empty_string_raises(self):
+        with pytest.raises(ValueError, match="start_date must be ISO format"):
+            create_trip_prefs("Tokyo", "", "2026-05-10")
+
+
+class TestDateValidation:
+    def setup_method(self):
+        from mcp_server.validation import validate_date_params
+        self.validate = validate_date_params
+
+    def test_valid_dates_pass(self):
+        assert self.validate("2026-04-17", "2026-04-25") == []
+
+    def test_single_day_trip(self):
+        assert self.validate("2026-04-17", "2026-04-17") == []
+
+    def test_invalid_format(self):
+        v = self.validate("not-a-date", "2026-04-25")
+        assert len(v) == 1
+        assert v[0]["rule"] == "date_format"
+
+    def test_both_invalid(self):
+        v = self.validate("foo", "bar")
+        assert len(v) == 2
+        assert all(x["rule"] == "date_format" for x in v)
+
+    def test_end_before_start(self):
+        v = self.validate("2026-04-25", "2026-04-17")
+        assert any(x["rule"] == "date_range" for x in v)
+
+    def test_excessive_duration(self):
+        v = self.validate("2026-01-01", "2026-12-31")
+        assert any(x["rule"] == "date_duration" for x in v)
+
+    def test_distant_past(self):
+        v = self.validate("2020-01-01", "2020-01-10")
+        assert any(x["rule"] == "date_past" for x in v)
+
+    def test_empty_string(self):
+        v = self.validate("", "2026-04-25")
+        assert any(x["rule"] == "date_format" for x in v)
+
+
 class TestValidation:
     def test_valid_wishlist(self):
         data = {

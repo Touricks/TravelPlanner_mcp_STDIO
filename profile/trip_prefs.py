@@ -14,6 +14,16 @@ def create_trip_prefs(
     end_date: str,
     overrides: Optional[dict] = None,
 ) -> dict:
+    from datetime import date as _date
+
+    for label, value in [("start_date", start_date), ("end_date", end_date)]:
+        try:
+            _date.fromisoformat(value)
+        except (ValueError, TypeError):
+            raise ValueError(
+                f"{label} must be ISO format (YYYY-MM-DD), got: '{value}'"
+            )
+
     return {
         "trip_id": f"{start_date[:7]}-{destination.lower().replace(' ', '-')}",
         "destination": destination,

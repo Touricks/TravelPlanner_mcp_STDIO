@@ -106,9 +106,9 @@ The agent then regenerates only the stale artifacts and resubmits.
 | `start_trip` | Initialize trip with destination, dates, optional workspace_tag |
 | `get_next_action` | Get stage instructions, input artifacts, output schema, prior errors |
 | `submit_artifact` | Validate (JSON Schema + rule engine) and save a stage's output |
-| `search_pois` | Server-side POI search via claude -p subprocess |
-| `search_restaurants` | Server-side restaurant search via claude -p subprocess |
-| `search_hotels` | Server-side hotel search via claude -p subprocess |
+| `search_pois` | Server-side POI search via codex exec discovery + claude -p transform |
+| `search_restaurants` | Server-side restaurant search via codex exec discovery + claude -p transform |
+| `search_hotels` | Server-side hotel search via codex exec discovery + claude -p transform |
 | `run_review` | Server-side Stage 5: hard rules + soft rules + optional Codex review |
 | `build_notion_manifest` | Generate Notion manifest with 4 database configs + entries |
 | `record_notion_urls` | Track per-database publish progress (supports partial publish) |

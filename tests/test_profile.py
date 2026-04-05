@@ -149,3 +149,27 @@ class TestValidation:
         }
         with pytest.raises(ValueError, match="min must be <= max"):
             validate_profile(data)
+
+    def test_wishlist_dict_rejected(self):
+        data = {
+            "identity": {}, "travel_interests": {}, "travel_style": {},
+            "wishlist": {"must_visit": ["Bixby Bridge"], "skip": ["mall"]},
+        }
+        with pytest.raises(ValueError, match="wishlist must be a list"):
+            validate_profile(data)
+
+    def test_wishlist_list_of_strings_rejected(self):
+        data = {
+            "identity": {}, "travel_interests": {}, "travel_style": {},
+            "wishlist": ["Bixby Bridge", "McWay Falls"],
+        }
+        with pytest.raises(ValueError, match="must be a dict"):
+            validate_profile(data)
+
+    def test_pois_per_day_string_shows_value(self):
+        data = {
+            "identity": {}, "travel_interests": {}, "travel_style": {},
+            "travel_pace": {"pois_per_day": "3-4"},
+        }
+        with pytest.raises(ValueError, match=r"Got.*3-4"):
+            validate_profile(data)

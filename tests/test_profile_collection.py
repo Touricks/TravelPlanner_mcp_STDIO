@@ -160,6 +160,40 @@ class TestValidateProfileStructure:
         with pytest.raises(ValueError, match="budget_tier"):
             validate_profile_structure({"accommodation": {"budget_tier": "luxury"}})
 
+    def test_wishlist_dict_rejected(self):
+        with pytest.raises(ValueError, match="wishlist must be a list"):
+            validate_profile_structure({"wishlist": {"must_visit": ["X"]}})
+
+    def test_wishlist_list_of_strings_rejected(self):
+        with pytest.raises(ValueError, match="must be a dict"):
+            validate_profile_structure({"wishlist": ["Bixby Bridge"]})
+
+    def test_pois_per_day_string_shows_value(self):
+        with pytest.raises(ValueError, match=r"Got.*3-4"):
+            validate_profile_structure({"travel_pace": {"pois_per_day": "3-4"}})
+
+    def test_valid_wishlist_still_passes(self):
+        validate_profile_structure({"wishlist": [{"name_en": "Test"}]})
+
+    def test_valid_pois_still_passes(self):
+        validate_profile_structure({"travel_pace": {"pois_per_day": [3, 5]}})
+
+
+class TestCheckProfileCompletenessBug002:
+    def test_wishlist_dict_structural_issue(self):
+        data = deepcopy(COMPLETE_PROFILE)
+        data["wishlist"] = {"must_visit": ["X"]}
+        result = check_profile_completeness(data)
+        assert result["complete"] is False
+        assert any("list" in i for i in result["structural_issues"])
+
+    def test_pois_per_day_string_structural_issue(self):
+        data = deepcopy(COMPLETE_PROFILE)
+        data["travel_pace"]["pois_per_day"] = "3-4"
+        result = check_profile_completeness(data)
+        assert result["complete"] is False
+        assert any("3-4" in i for i in result["structural_issues"])
+
 
 # ---------------------------------------------------------------------------
 # WorkflowState — instance-level stages

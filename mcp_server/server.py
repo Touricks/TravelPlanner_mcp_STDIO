@@ -862,7 +862,17 @@ def get_workflow_status(session_id: str) -> dict[str, Any]:
     }
 
 
-@mcp.tool(description="Update traveler profile (additive deep merge). Safe for incremental building.")
+@mcp.tool(description=(
+    "Update traveler profile (additive deep merge). Safe for incremental building.\n"
+    "\n"
+    "Key field formats:\n"
+    "- wishlist: list of dicts, each with 'name_en' (required), "
+    "'priority' ('must_visit'|'nice_to_have'|'flexible', default 'flexible').\n"
+    '  Example: [{"name_en": "South Beach", "priority": "must_visit"}]\n'
+    "- travel_pace.pois_per_day: [min, max] list of two ints, e.g. [3, 5]\n"
+    "- dietary.budget_tier / accommodation.budget_tier: 'budget'|'moderate'|'premium'\n"
+    "- dietary.restrictions: list of strings, e.g. [\"no pork\"]\n"
+))
 def update_profile(updates: dict) -> dict[str, Any]:
     from profile.schema import (
         deep_merge,

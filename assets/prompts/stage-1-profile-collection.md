@@ -36,6 +36,8 @@ $destination_questions
    - "I'm a software engineer" → `update_profile({"identity": {"role": "software engineer"}})`
    - "I like hiking and nature" → `update_profile({"travel_interests": {"nature": {"description": "hiking and nature activities"}}})`
    - "No food allergies" → `update_profile({"dietary": {"restrictions": []}})`
+   - "Must-visit: Bixby Bridge, McWay Falls" → `update_profile({"wishlist": [{"name_en": "Bixby Bridge", "priority": "must_visit"}, {"name_en": "McWay Falls", "priority": "must_visit"}]})`
+   - "3-5 places per day" → `update_profile({"travel_pace": {"pois_per_day": [3, 5]}})`
 
 7. **When you believe the profile has enough information**, call `complete_profile_collection(session_id)`.
    - If the server says the profile is still incomplete, it will tell you exactly what's missing — ask those remaining questions.

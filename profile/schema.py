@@ -49,12 +49,26 @@ def validate_profile(data: dict) -> None:
         pois = pace.get("pois_per_day")
         if pois is not None:
             if not (isinstance(pois, list) and len(pois) == 2):
-                raise ValueError("travel_pace.pois_per_day must be a [min, max] list")
+                raise ValueError(
+                    "travel_pace.pois_per_day must be a [min, max] list of integers, "
+                    f"e.g. [3, 5]. Got: {pois!r}"
+                )
             if pois[0] > pois[1]:
                 raise ValueError("pois_per_day min must be <= max")
 
     if "wishlist" in data:
+        if not isinstance(data["wishlist"], list):
+            raise ValueError(
+                "wishlist must be a list of dicts, e.g. "
+                '[{"name_en": "Place", "priority": "must_visit"}]. '
+                f"Got {type(data['wishlist']).__name__}."
+            )
         for i, item in enumerate(data["wishlist"]):
+            if not isinstance(item, dict):
+                raise ValueError(
+                    f"wishlist[{i}] must be a dict with 'name_en' key. "
+                    f"Got {type(item).__name__}."
+                )
             if "name_en" not in item:
                 raise ValueError(f"wishlist[{i}] missing name_en")
             pri = item.get("priority", "flexible")
@@ -83,12 +97,26 @@ def validate_profile_structure(data: dict) -> None:
         pois = pace.get("pois_per_day")
         if pois is not None:
             if not (isinstance(pois, list) and len(pois) == 2):
-                raise ValueError("travel_pace.pois_per_day must be a [min, max] list")
+                raise ValueError(
+                    "travel_pace.pois_per_day must be a [min, max] list of integers, "
+                    f"e.g. [3, 5]. Got: {pois!r}"
+                )
             if pois[0] > pois[1]:
                 raise ValueError("pois_per_day min must be <= max")
 
     if "wishlist" in data:
+        if not isinstance(data["wishlist"], list):
+            raise ValueError(
+                "wishlist must be a list of dicts, e.g. "
+                '[{"name_en": "Place", "priority": "must_visit"}]. '
+                f"Got {type(data['wishlist']).__name__}."
+            )
         for i, item in enumerate(data["wishlist"]):
+            if not isinstance(item, dict):
+                raise ValueError(
+                    f"wishlist[{i}] must be a dict with 'name_en' key. "
+                    f"Got {type(item).__name__}."
+                )
             if "name_en" not in item:
                 raise ValueError(f"wishlist[{i}] missing name_en")
             pri = item.get("priority", "flexible")
@@ -124,16 +152,30 @@ def check_profile_completeness(data: dict) -> dict:
         if pois is not None:
             if not (isinstance(pois, list) and len(pois) == 2 and pois[0] <= pois[1]):
                 structural_issues.append(
-                    "travel_pace.pois_per_day: must be [min, max] with min <= max"
+                    "travel_pace.pois_per_day must be a [min, max] list of integers, "
+                    f"e.g. [3, 5]. Got: {pois!r}"
                 )
 
     if "wishlist" in data:
-        for i, item in enumerate(data["wishlist"]):
-            if "name_en" not in item:
-                structural_issues.append(f"wishlist[{i}]: missing name_en")
-            pri = item.get("priority", "flexible")
-            if pri not in VALID_PRIORITIES:
-                structural_issues.append(f"wishlist[{i}]: invalid priority {pri}")
+        if not isinstance(data["wishlist"], list):
+            structural_issues.append(
+                "wishlist must be a list of dicts, e.g. "
+                '[{"name_en": "Place", "priority": "must_visit"}]. '
+                f"Got {type(data['wishlist']).__name__}."
+            )
+        else:
+            for i, item in enumerate(data["wishlist"]):
+                if not isinstance(item, dict):
+                    structural_issues.append(
+                        f"wishlist[{i}] must be a dict with 'name_en' key. "
+                        f"Got {type(item).__name__}."
+                    )
+                    continue
+                if "name_en" not in item:
+                    structural_issues.append(f"wishlist[{i}]: missing name_en")
+                pri = item.get("priority", "flexible")
+                if pri not in VALID_PRIORITIES:
+                    structural_issues.append(f"wishlist[{i}]: invalid priority {pri}")
 
     if "dietary" in data:
         tier = data["dietary"].get("budget_tier")

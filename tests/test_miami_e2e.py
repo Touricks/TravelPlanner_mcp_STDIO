@@ -86,7 +86,7 @@ def mock_search(monkeypatch):
     """Mock codex exec + claude -p transform with Miami fixture data."""
     from tests.fixtures import MIAMI_HOTELS, MIAMI_POI_CANDIDATES, MIAMI_RESTAURANTS
 
-    async def fake_codex_search(prompt, ctx=None):
+    async def fake_codex_search(prompt, ctx=None, **kwargs):
         return "mock codex search results"
 
     async def fake_transform(transform_prompt, schema_path):

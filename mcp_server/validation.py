@@ -27,6 +27,60 @@ def validate_schema(stage: str, data: Any) -> list[dict]:
     return errors
 
 
+def validate_date_params(start_date: str, end_date: str) -> list[dict]:
+    from datetime import date as _date, timedelta
+
+    MAX_TRIP_DAYS = 90
+    violations: list[dict] = []
+
+    try:
+        start = _date.fromisoformat(start_date)
+    except (ValueError, TypeError):
+        violations.append({
+            "rule": "date_format",
+            "item": "start_date",
+            "detail": f"Invalid ISO date format: '{start_date}'. Expected YYYY-MM-DD.",
+        })
+        start = None
+
+    try:
+        end = _date.fromisoformat(end_date)
+    except (ValueError, TypeError):
+        violations.append({
+            "rule": "date_format",
+            "item": "end_date",
+            "detail": f"Invalid ISO date format: '{end_date}'. Expected YYYY-MM-DD.",
+        })
+        end = None
+
+    if start is None or end is None:
+        return violations
+
+    if end < start:
+        violations.append({
+            "rule": "date_range",
+            "item": "end_date",
+            "detail": f"end_date ({end_date}) is before start_date ({start_date}).",
+        })
+
+    duration = (end - start).days + 1
+    if duration > MAX_TRIP_DAYS:
+        violations.append({
+            "rule": "date_duration",
+            "item": "date_range",
+            "detail": f"Trip duration {duration} days exceeds maximum of {MAX_TRIP_DAYS}.",
+        })
+
+    if start < _date.today() - timedelta(days=365):
+        violations.append({
+            "rule": "date_past",
+            "item": "start_date",
+            "detail": f"start_date ({start_date}) is more than 1 year in the past.",
+        })
+
+    return violations
+
+
 def validate_stage(stage: str, data: Any, session_id: str) -> list[dict]:
     violations = validate_schema(stage, data)
     if violations:

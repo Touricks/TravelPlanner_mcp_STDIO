@@ -376,8 +376,18 @@ def start_trip(
     overrides: Optional[dict] = None,
     workspace_tag: Optional[str] = None,
 ) -> dict[str, Any]:
+    from mcp_server.validation import validate_date_params
     from profile.schema import check_profile_completeness, load_profile_safe
     from profile.trip_prefs import create_trip_prefs, save_trip_prefs
+
+    date_violations = validate_date_params(start_date, end_date)
+    if date_violations:
+        return {
+            "status": "error",
+            "error": "invalid_dates",
+            "violations": date_violations,
+            "hint": "Ask the user for valid travel dates in YYYY-MM-DD format.",
+        }
 
     cleanup_stale_sessions()
 

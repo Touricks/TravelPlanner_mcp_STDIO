@@ -30,7 +30,14 @@ proceed to Step 1.
 
 ### 1. Initialize
 Extract destination, start_date, end_date from the user request.
+- If start_date or end_date is missing or vague (e.g. "next month", "soon", "spring"): \
+ASK the user for specific dates before calling start_trip. Do NOT invent or assume dates.
+- If the user gives duration but no start date (e.g. "5 days"): \
+ASK "When would you like to start? I need a start date (YYYY-MM-DD)."
+- WAIT for the user's response before proceeding.
 Call `start_trip(destination, start_date, end_date, workspace_tag="descriptive-label")`.
+If start_trip returns status="error", read the violations and hint, then ask the user \
+to correct the issue before retrying.
 Store the returned `session_id` and `workspace_id`. Use `session_id` for ALL subsequent \
 tool calls. Store `workspace_id` for cross-conversation resumption.
 Check `profile_complete` in the response — if false, first action will be \

@@ -3,6 +3,9 @@
 Architecture and stack: see ARCHITECTURE.md
 Requirements: see PRD.md
 
+## User Preference
+Always initial a git worktree before implementing a plan generated from PLAN MODE.
+
 ## Rules
 
 - Pipeline stages produce YAML artifacts with validated schemas; never pass unvalidated data between stages

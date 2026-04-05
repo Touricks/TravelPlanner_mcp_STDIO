@@ -106,7 +106,7 @@ def _build_action(state: WorkflowState) -> dict[str, Any]:
         return {
             "status": "action_required",
             "stage": stage,
-            "instructions": f"Call {tool_name}(session_id) to execute server-side search.",
+            "instructions": f"Call {tool_name}(session_id). Optional: max_results (POIs only, default 15), time_limit_seconds (default 120).",
             "input_artifacts": {},
             "output_schema": {},
             "prior_errors": state.prior_errors.get(stage, []),
@@ -269,9 +269,10 @@ def _filter_answered_questions(questions: list[dict], profile: dict) -> list[dic
 # ---------------------------------------------------------------------------
 
 async def _run_codex_search(
-    prompt: str, ctx: Optional[Context] = None,
+    prompt: str, ctx: Optional[Context] = None, timeout: Optional[int] = None,
 ) -> str:
     """Run codex exec for web search discovery. Returns raw stdout text."""
+    effective_timeout = timeout or config.CODEX_SEARCH_TIMEOUT_SECONDS
     proc = await asyncio.create_subprocess_exec(
         "codex", "exec", "--skip-git-repo-check", prompt,
         stdout=asyncio.subprocess.PIPE,
@@ -288,7 +289,7 @@ async def _run_codex_search(
                     await ctx.info(f"Search in progress... ({elapsed}s elapsed)")
                     await ctx.report_progress(
                         progress=elapsed,
-                        total=config.CODEX_SEARCH_TIMEOUT_SECONDS,
+                        total=effective_timeout,
                         message=f"Codex discovery ({elapsed}s elapsed)",
                     )
                 log.info("Heartbeat: codex search %ds elapsed", elapsed)
@@ -298,13 +299,13 @@ async def _run_codex_search(
     hb = asyncio.create_task(_heartbeat())
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            proc.communicate(), timeout=config.CODEX_SEARCH_TIMEOUT_SECONDS,
+            proc.communicate(), timeout=effective_timeout,
         )
     except asyncio.TimeoutError:
         proc.kill()
         await proc.wait()
         raise SearchError(
-            f"Codex search timed out after {config.CODEX_SEARCH_TIMEOUT_SECONDS}s"
+            f"Codex search timed out after {effective_timeout}s"
         )
     finally:
         hb.cancel()
@@ -365,7 +366,34 @@ async def _run_claude_transform(
     return output.get("structured_output", output)
 
 
-def _build_poi_search_prompt(state: WorkflowState) -> str:
+_SECONDS_PER_POI = 25
+
+
+def _compute_poi_target(state: WorkflowState) -> int:
+    """Derive POI count from trip duration × max pois_per_day from profile."""
+    from datetime import date
+
+    prefs = _load_trip_prefs(state.trip_id)
+    try:
+        start = date.fromisoformat(prefs.get("dates", {}).get("start", ""))
+        end = date.fromisoformat(prefs.get("dates", {}).get("end", ""))
+        trip_days = (end - start).days + 1
+    except (ValueError, TypeError):
+        trip_days = 3
+
+    profile = _load_merged_profile_from_prefs(state.trip_id, prefs)
+    pace = (profile.get("travel_pace") or {}).get("pois_per_day", [3, 5])
+    max_per_day = pace[-1] if isinstance(pace, list) and pace else 5
+
+    return trip_days * max_per_day
+
+
+def _estimate_search_timeout(max_results: int) -> int:
+    """~25s per POI, clamped to [30, 900]."""
+    return max(30, min(max_results * _SECONDS_PER_POI, 900))
+
+
+def _build_poi_search_prompt(state: WorkflowState, max_results: int = 15) -> str:
     import yaml
 
     prefs = _load_trip_prefs(state.trip_id)
@@ -390,8 +418,8 @@ def _build_poi_search_prompt(state: WorkflowState) -> str:
         f"## Requirements\n"
         f"- Include all wishlist items from the profile with their stated priority.\n"
         f"- Add agent-suggested POIs that match the traveler's interests.\n"
-        f"- Aim for 30-50 candidate POIs total.\n"
-        f"- Verify operating hours are current.\n"
+        f"- Return at most {max_results} candidate POIs.\n"
+        f"- Prioritize must_visit wishlist items, then nice_to_have, then agent suggestions.\n"
     )
 
 
@@ -618,18 +646,37 @@ def submit_artifact(
 # Server-side search tools (3)
 # ---------------------------------------------------------------------------
 
-@mcp.tool(description="Search for POIs via codex exec discovery + claude -p transform (server-side).")
-async def search_pois(session_id: str, ctx: Context) -> dict[str, Any]:
+@mcp.tool(description=(
+    "Discover POI candidates for a trip via web search. "
+    "Returns structured candidates with bilingual names, coordinates, hours, and descriptions. "
+    "Runs server-side (agent must NOT call WebSearch). "
+    "max_results defaults to trip_days × max_pois_per_day (from profile); "
+    "override to search fewer (faster) or more (broader pool). "
+    "time_limit_seconds auto-scales with max_results (~25s/POI); override to constrain."
+))
+async def search_pois(
+    session_id: str,
+    ctx: Context,
+    max_results: Optional[int] = None,
+    time_limit_seconds: Optional[int] = None,
+) -> dict[str, Any]:
     state = WorkflowState.load(session_id)
     if state.status != "active":
         return {"status": "blocked", "reason": f"Trip is {state.status}"}
 
-    await ctx.info("Starting POI search — this may take several minutes...")
+    if max_results is None:
+        max_results = _compute_poi_target(state)
+    max_results = max(5, min(max_results, 50))
+    if time_limit_seconds is None:
+        time_limit_seconds = _estimate_search_timeout(max_results)
+    time_limit_seconds = max(30, min(time_limit_seconds, 900))
+
+    await ctx.info(f"Starting POI search (max {max_results} results, {time_limit_seconds}s limit)...")
     await ctx.report_progress(progress=0, total=4, message="Starting codex discovery")
 
-    search_prompt = _build_poi_search_prompt(state)
+    search_prompt = _build_poi_search_prompt(state, max_results=max_results)
     try:
-        raw_text = await _run_codex_search(search_prompt, ctx=ctx)
+        raw_text = await _run_codex_search(search_prompt, ctx=ctx, timeout=time_limit_seconds)
     except SearchError as e:
         await ctx.error(f"POI search failed: {e}")
         return {"status": "search_failed", "error": str(e), "partial_results": []}
@@ -668,18 +715,29 @@ async def search_pois(session_id: str, ctx: Context) -> dict[str, Any]:
     }
 
 
-@mcp.tool(description="Search for restaurants via codex exec discovery + claude -p transform (server-side).")
-async def search_restaurants(session_id: str, ctx: Context) -> dict[str, Any]:
+@mcp.tool(description=(
+    "Discover restaurant recommendations near scheduled POIs via web search. "
+    "Returns structured recommendations with bilingual names, cuisine, price tier, and day assignment. "
+    "Runs server-side (agent must NOT call WebSearch). "
+    "time_limit_seconds defaults to 120; override to constrain."
+))
+async def search_restaurants(
+    session_id: str,
+    ctx: Context,
+    time_limit_seconds: int = 120,
+) -> dict[str, Any]:
     state = WorkflowState.load(session_id)
     if state.status != "active":
         return {"status": "blocked", "reason": f"Trip is {state.status}"}
 
-    await ctx.info("Starting restaurant search — this may take several minutes...")
+    time_limit_seconds = max(30, min(time_limit_seconds, 900))
+
+    await ctx.info(f"Starting restaurant search ({time_limit_seconds}s limit)...")
     await ctx.report_progress(progress=0, total=4, message="Starting codex discovery")
 
     search_prompt = _build_restaurant_search_prompt(state)
     try:
-        raw_text = await _run_codex_search(search_prompt, ctx=ctx)
+        raw_text = await _run_codex_search(search_prompt, ctx=ctx, timeout=time_limit_seconds)
     except SearchError as e:
         await ctx.error(f"Restaurant search failed: {e}")
         return {"status": "search_failed", "error": str(e), "partial_results": []}
@@ -722,18 +780,29 @@ async def search_restaurants(session_id: str, ctx: Context) -> dict[str, Any]:
     }
 
 
-@mcp.tool(description="Search for hotels via codex exec discovery + claude -p transform (server-side).")
-async def search_hotels(session_id: str, ctx: Context) -> dict[str, Any]:
+@mcp.tool(description=(
+    "Discover hotel recommendations grouped by itinerary region clusters via web search. "
+    "Returns structured recommendations with bilingual names, price tier, and night ranges. "
+    "Runs server-side (agent must NOT call WebSearch). "
+    "time_limit_seconds defaults to 120; override to constrain."
+))
+async def search_hotels(
+    session_id: str,
+    ctx: Context,
+    time_limit_seconds: int = 120,
+) -> dict[str, Any]:
     state = WorkflowState.load(session_id)
     if state.status != "active":
         return {"status": "blocked", "reason": f"Trip is {state.status}"}
 
-    await ctx.info("Starting hotel search — this may take several minutes...")
+    time_limit_seconds = max(30, min(time_limit_seconds, 900))
+
+    await ctx.info(f"Starting hotel search ({time_limit_seconds}s limit)...")
     await ctx.report_progress(progress=0, total=4, message="Starting codex discovery")
 
     search_prompt = _build_hotel_search_prompt(state)
     try:
-        raw_text = await _run_codex_search(search_prompt, ctx=ctx)
+        raw_text = await _run_codex_search(search_prompt, ctx=ctx, timeout=time_limit_seconds)
     except SearchError as e:
         await ctx.error(f"Hotel search failed: {e}")
         return {"status": "search_failed", "error": str(e), "partial_results": []}

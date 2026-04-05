@@ -4,7 +4,6 @@ When implementing or modifying the CLI write layer (trip.py):
 - Follow the command signatures and behavior exactly as specified
 - All writes go through service functions in `utils.py` that wrap INSERT/UPDATE + audit_log in one transaction
 - Push to Notion uses manifest pattern: CLI generates JSON with manifest_id → agent calls MCP → CLI marks synced via manifest_id
-- Write commands accept UUID or integer ID only (no name prefix) — deterministic targeting for agent safety
 - Read/status commands may additionally accept name prefix with hard-fail on ambiguity
 - sort_order uses REAL values (schema: `sort_order REAL`) for fractional insertion between items
 - Click handlers are thin wrappers: parse args → call service function → format output

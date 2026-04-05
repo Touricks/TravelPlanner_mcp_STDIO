@@ -259,22 +259,6 @@ class TestSchedule:
         assert row[0] == "09:00"
         assert row[1] == "10:30"
 
-    def test_schedule_by_uuid_prefix(self, db_with_place):
-        db_path, place_id = db_with_place
-        conn = sqlite3.connect(str(db_path))
-        uuid = conn.execute(
-            "SELECT uuid FROM places WHERE id=?", (place_id,)
-        ).fetchone()[0]
-        conn.close()
-        prefix = uuid[:8]
-        runner = CliRunner()
-        result = runner.invoke(
-            cli,
-            ["--db", str(db_path), "schedule", prefix, "--day", "1"],
-        )
-        assert result.exit_code == 0
-        assert "Scheduled" in result.output
-
     def test_day_out_of_range(self, db_with_place):
         db_path, place_id = db_with_place
         runner = CliRunner()

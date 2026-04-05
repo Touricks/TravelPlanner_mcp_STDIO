@@ -147,7 +147,7 @@ class TestInitialProgress:
         })()
 
         monkeypatch.setattr(WorkflowState, "load", lambda sid: fake_state)
-        monkeypatch.setattr(server, "_build_poi_search_prompt", lambda s: "prompt")
+        monkeypatch.setattr(server, "_build_poi_search_prompt", lambda s, **kw: "prompt")
         monkeypatch.setattr(server, "_run_codex_search", AsyncMock(return_value="raw"))
         monkeypatch.setattr(server, "_run_claude_transform", AsyncMock(return_value={"candidates": []}))
         monkeypatch.setattr(server, "validation", type("V", (), {

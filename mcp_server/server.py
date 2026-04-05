@@ -605,7 +605,7 @@ def submit_artifact(
 # Server-side search tools (3)
 # ---------------------------------------------------------------------------
 
-@mcp.tool(description="Search for POIs via Codex WebSearch (server-side). Agent does NOT use WebSearch directly.")
+@mcp.tool(description="Search for POIs via codex exec discovery + claude -p transform (server-side).")
 async def search_pois(session_id: str, ctx: Context) -> dict[str, Any]:
     state = WorkflowState.load(session_id)
     if state.status != "active":
@@ -654,7 +654,7 @@ async def search_pois(session_id: str, ctx: Context) -> dict[str, Any]:
     }
 
 
-@mcp.tool(description="Search for restaurants via Codex WebSearch (server-side).")
+@mcp.tool(description="Search for restaurants via codex exec discovery + claude -p transform (server-side).")
 async def search_restaurants(session_id: str, ctx: Context) -> dict[str, Any]:
     state = WorkflowState.load(session_id)
     if state.status != "active":
@@ -707,7 +707,7 @@ async def search_restaurants(session_id: str, ctx: Context) -> dict[str, Any]:
     }
 
 
-@mcp.tool(description="Search for hotels via Codex WebSearch (server-side).")
+@mcp.tool(description="Search for hotels via codex exec discovery + claude -p transform (server-side).")
 async def search_hotels(session_id: str, ctx: Context) -> dict[str, Any]:
     state = WorkflowState.load(session_id)
     if state.status != "active":

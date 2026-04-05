@@ -103,10 +103,18 @@ def _build_action(state: WorkflowState) -> dict[str, Any]:
     search_tool_names = {"poi_search": "search_pois", "restaurants": "search_restaurants", "hotels": "search_hotels"}
     if stage in config.SEARCH_STAGES:
         tool_name = search_tool_names[stage]
+        if stage == "poi_search":
+            hint = (
+                f"Call {tool_name}(session_id). "
+                "Optional: max_results (default: trip_days × max_pois_per_day from profile). "
+                "Omit time_limit_seconds to let it auto-scale with max_results (~25s/POI)."
+            )
+        else:
+            hint = f"Call {tool_name}(session_id). Optional: time_limit_seconds (default 120)."
         return {
             "status": "action_required",
             "stage": stage,
-            "instructions": f"Call {tool_name}(session_id). Optional: max_results (POIs only, default 15), time_limit_seconds (default 120).",
+            "instructions": hint,
             "input_artifacts": {},
             "output_schema": {},
             "prior_errors": state.prior_errors.get(stage, []),

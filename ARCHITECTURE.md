@@ -191,9 +191,9 @@ A Python MCP server (`mcp_server/`) that guides a Claude agent through the entir
 | `start_trip` | Initialize trip + session, returns `session_id` |
 | `get_next_action` | Core orchestration — returns stage instructions + input artifacts + schema |
 | `submit_artifact` | Validate (JSON Schema + rule engine) and save stage output |
-| `search_pois` | **Server-side** POI search via `claude -p` async subprocess |
-| `search_restaurants` | **Server-side** restaurant search via `claude -p` async subprocess |
-| `search_hotels` | **Server-side** hotel search via `claude -p` async subprocess |
+| `search_pois` | **Server-side** POI search via `codex exec` discovery + `claude -p --bare` transform |
+| `search_restaurants` | **Server-side** restaurant search via `codex exec` discovery + `claude -p --bare` transform |
+| `search_hotels` | **Server-side** hotel search via `codex exec` discovery + `claude -p --bare` transform |
 | `run_review` | Server-side Stage 5 (hard rules + soft rules + Codex) |
 | `build_notion_manifest` | Generate 4-database Notion manifest |
 | `record_notion_urls` | Track partial/complete Notion publish |
@@ -225,12 +225,15 @@ A Python MCP server (`mcp_server/`) that guides a Claude agent through the entir
 
 ### Search Architecture
 
-Search tools (`search_pois`, `search_restaurants`, `search_hotels`) run `claude -p` with `--allowedTools "WebSearch"` as async subprocesses (`asyncio.create_subprocess_exec`, 600s timeout). The agent never uses WebSearch directly — it calls search tools and gets structured results back.
+Search tools use a two-phase architecture: `codex exec --skip-git-repo-check` for web search discovery (returns raw text), then `claude -p --bare --json-schema` for structured transformation. Search prompts must demand all grounded fields (bilingual names, coordinates, hours, source URLs) so the transform step does not hallucinate. The agent never uses WebSearch directly.
 
 ```
-Agent ──search_pois(session_id)──> Server ──claude -p subprocess──> WebSearch
-                                      └──> validates + saves + returns summary
+Agent ──search_pois(session_id, ctx)──> Server ──codex exec──> WebSearch discovery
+                                           └──> claude -p --bare ──> structured transform
+                                           └──> validates + saves + returns summary
 ```
+
+`codex:rescue` (the Claude Code agent definition) has a tools allowlist of `{Bash}` only — WebSearch is structurally impossible through that path. Raw `codex exec` and `/call-codex` have WebSearch available by default; search discovery uses `codex exec` directly.
 
 ### Workflow State Machine
 

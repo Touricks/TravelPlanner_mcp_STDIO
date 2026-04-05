@@ -41,7 +41,7 @@ updated_at: 2026-04-02
 **Flow:**
 1. User provides destination and dates ("SF, Apr 17-25")
 2. Agent loads persistent profile.yaml, asks for trip-specific preferences (pace, wishlist POIs like Sequoia)
-3. Agent searches for POIs via WebSearch + Codex, generates candidate list
+3. Server searches for POIs via Codex web discovery + Claude structured transform, generates candidate list
 4. Agent schedules POIs with guardrails (nature < 19:00, staffed < 16:00, no overlaps)
 5. Agent recommends restaurants near each day's POI cluster for lunch/dinner windows
 6. Agent recommends hotels based on nightly location density

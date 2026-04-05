@@ -1,7 +1,7 @@
 """E2E test for Miami, FL 5-day itinerary.
 
 Exercises the full MCP workflow pipeline by calling actual tool functions
-with _run_claude_search mocked to return Miami fixture data.
+with search subprocess mocked to return Miami fixture data.
 
 Tests: start_trip -> search -> scheduling -> review -> notion -> complete,
 including bridge sync to SQLite and session query verification.
@@ -20,6 +20,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from mcp_server.config import GUARDRAILS_PATH, STAGES
+
+
+class _MockContext:
+    """Minimal stand-in for FastMCP Context in tests."""
+
+    async def info(self, msg): pass
+    async def error(self, msg): pass
+    async def debug(self, msg): pass
+    async def report_progress(self, **kw): pass
+
+
+MOCK_CTX = _MockContext()
 
 
 # ---------------------------------------------------------------------------
@@ -71,18 +83,22 @@ def mcp_env(tmp_path, monkeypatch):
 
 @pytest.fixture
 def mock_search(monkeypatch):
-    """Mock claude -p subprocess with Miami fixture data."""
+    """Mock codex exec + claude -p transform with Miami fixture data."""
     from tests.fixtures import MIAMI_HOTELS, MIAMI_POI_CANDIDATES, MIAMI_RESTAURANTS
 
-    async def fake_search(prompt, schema_path):
-        stage = schema_path.stem  # "poi-candidates", "restaurants", "hotels"
+    async def fake_codex_search(prompt, ctx=None):
+        return "mock codex search results"
+
+    async def fake_transform(transform_prompt, schema_path):
+        stage = schema_path.stem
         return {
             "poi-candidates": MIAMI_POI_CANDIDATES,
             "restaurants": MIAMI_RESTAURANTS,
             "hotels": MIAMI_HOTELS,
         }[stage]
 
-    monkeypatch.setattr("mcp_server.server._run_claude_search", fake_search)
+    monkeypatch.setattr("mcp_server.server._run_codex_search", fake_codex_search)
+    monkeypatch.setattr("mcp_server.server._run_claude_transform", fake_transform)
 
 
 def _run_full_workflow(mcp_env):
@@ -103,10 +119,10 @@ def _run_full_workflow(mcp_env):
     r = start_trip("Miami, FL", "2026-05-01", "2026-05-05")
     sid = r["session_id"]
 
-    asyncio.run(search_pois(sid))
+    asyncio.run(search_pois(sid, MOCK_CTX))
     submit_artifact(sid, "scheduling", MIAMI_ITINERARY)
-    asyncio.run(search_restaurants(sid))
-    asyncio.run(search_hotels(sid))
+    asyncio.run(search_restaurants(sid, MOCK_CTX))
+    asyncio.run(search_hotels(sid, MOCK_CTX))
     run_review(sid, skip_codex=True)
     build_notion_manifest(sid)
     record_notion_urls(
@@ -147,22 +163,18 @@ class TestMiamiE2E:
         sid = r["session_id"]
         assert r["first_action"]["stage"] == "poi_search"
 
-        # poi_search (mocked claude -p)
-        r = asyncio.run(search_pois(sid))
+        r = asyncio.run(search_pois(sid, MOCK_CTX))
         assert r["status"] == "complete"
         assert r["candidates_count"] == 12
 
-        # scheduling — submit itinerary artifact (real validation)
         r = submit_artifact(sid, "scheduling", MIAMI_ITINERARY)
         assert r["status"] == "accepted", f"Scheduling rejected: {r}"
 
-        # restaurants (mocked claude -p, real validation)
-        r = asyncio.run(search_restaurants(sid))
+        r = asyncio.run(search_restaurants(sid, MOCK_CTX))
         assert r["status"] == "complete"
         assert r["recommendations_count"] == 10
 
-        # hotels (mocked claude -p, real validation)
-        r = asyncio.run(search_hotels(sid))
+        r = asyncio.run(search_hotels(sid, MOCK_CTX))
         assert r["status"] == "complete"
         assert r["recommendations_count"] == 2
 
@@ -267,8 +279,7 @@ class TestMiamiE2E:
         r = start_trip("Miami, FL", "2026-05-01", "2026-05-05")
         sid = r["session_id"]
 
-        # Advance past poi_search
-        asyncio.run(search_pois(sid))
+        asyncio.run(search_pois(sid, MOCK_CTX))
 
         # Submit bad itinerary — missing required fields in items
         bad = {

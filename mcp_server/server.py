@@ -390,7 +390,7 @@ def _compute_poi_target(state: WorkflowState) -> int:
 
 def _estimate_search_timeout(max_results: int) -> int:
     """~25s per POI, clamped to [30, 900]."""
-    return max(30, min(max_results * _SECONDS_PER_POI, 900))
+    return max(10, min(max_results * _SECONDS_PER_POI, 900))
 
 
 def _build_poi_search_prompt(state: WorkflowState, max_results: int = 15) -> str:
@@ -669,7 +669,7 @@ async def search_pois(
     max_results = max(5, min(max_results, 50))
     if time_limit_seconds is None:
         time_limit_seconds = _estimate_search_timeout(max_results)
-    time_limit_seconds = max(30, min(time_limit_seconds, 900))
+    time_limit_seconds = max(10, min(time_limit_seconds, 900))
 
     await ctx.info(f"Starting POI search (max {max_results} results, {time_limit_seconds}s limit)...")
     await ctx.report_progress(progress=0, total=4, message="Starting codex discovery")
@@ -730,7 +730,7 @@ async def search_restaurants(
     if state.status != "active":
         return {"status": "blocked", "reason": f"Trip is {state.status}"}
 
-    time_limit_seconds = max(30, min(time_limit_seconds, 900))
+    time_limit_seconds = max(10, min(time_limit_seconds, 900))
 
     await ctx.info(f"Starting restaurant search ({time_limit_seconds}s limit)...")
     await ctx.report_progress(progress=0, total=4, message="Starting codex discovery")
@@ -795,7 +795,7 @@ async def search_hotels(
     if state.status != "active":
         return {"status": "blocked", "reason": f"Trip is {state.status}"}
 
-    time_limit_seconds = max(30, min(time_limit_seconds, 900))
+    time_limit_seconds = max(10, min(time_limit_seconds, 900))
 
     await ctx.info(f"Starting hotel search ({time_limit_seconds}s limit)...")
     await ctx.report_progress(progress=0, total=4, message="Starting codex discovery")

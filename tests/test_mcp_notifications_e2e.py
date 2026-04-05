@@ -29,7 +29,6 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 def server_params():
     env = os.environ.copy()
     env["PYTHONPATH"] = str(PROJECT_ROOT)
-    env["CODEX_SEARCH_TIMEOUT_SECONDS"] = "10"
     return StdioServerParameters(
         command=str(PROJECT_ROOT / ".venv-mcp" / "bin" / "python3"),
         args=["-m", "mcp_server.server"],
@@ -127,8 +126,8 @@ class TestNotificationDelivery:
 
                     result = await session.call_tool(
                         "search_pois",
-                        arguments={"session_id": session_id},
-                        read_timeout_seconds=timedelta(seconds=120),
+                        arguments={"session_id": session_id, "time_limit_seconds": 10},
+                        read_timeout_seconds=timedelta(seconds=30),
                         progress_callback=collector.on_progress,
                     )
 

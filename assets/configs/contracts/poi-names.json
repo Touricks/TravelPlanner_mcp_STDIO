@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "destination": { "type": "string" },
+    "poi_names": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name_en": { "type": "string" },
+          "name_cn": { "type": "string" },
+          "style": {
+            "type": "string",
+            "enum": ["nature", "tech", "culture", "food", "landmark", "coffee"]
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["must_visit", "nice_to_have", "flexible", "agent_suggested"]
+          }
+        },
+        "required": ["name_en", "priority"]
+      }
+    }
+  },
+  "required": ["destination", "poi_names"]
+}

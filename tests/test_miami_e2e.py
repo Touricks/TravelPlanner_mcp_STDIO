@@ -93,6 +93,13 @@ def mock_search(monkeypatch):
         stage = schema_path.stem
         return {
             "poi-candidates": MIAMI_POI_CANDIDATES,
+            "poi-names": {
+                "destination": "Miami, FL",
+                "poi_names": [
+                    {"name_en": c["name_en"], "priority": c.get("priority", "agent_suggested")}
+                    for c in MIAMI_POI_CANDIDATES["candidates"]
+                ],
+            },
             "restaurants": MIAMI_RESTAURANTS,
             "hotels": MIAMI_HOTELS,
         }[stage]

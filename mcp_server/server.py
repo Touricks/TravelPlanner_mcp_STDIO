@@ -105,9 +105,11 @@ def _build_action(state: WorkflowState) -> dict[str, Any]:
         tool_name = search_tool_names[stage]
         if stage == "poi_search":
             hint = (
-                f"Call {tool_name}(session_id). "
+                "Call discover_poi_names(session_id) to preview POI names, "
+                f"then call {tool_name}(session_id) to collect metadata in parallel. "
                 "Optional: max_results (default: trip_days × max_pois_per_day from profile). "
-                "Omit time_limit_seconds to let it auto-scale with max_results (~25s/POI)."
+                "POI search runs in parallel (~2-3 min). "
+                "Monitor via travel://session/{session_id}/poi-search-progress."
             )
         else:
             hint = f"Call {tool_name}(session_id). Optional: time_limit_seconds (default 120)."
@@ -443,6 +445,140 @@ def _build_poi_transform_prompt(raw_text: str) -> str:
     )
 
 
+def _build_name_discovery_prompt(
+    destination: str, profile_yaml: str, remaining_slots: int,
+) -> str:
+    return (
+        f"You are a travel research assistant. Based on the traveler profile below, "
+        f"suggest {remaining_slots} Points of Interest for a trip to {destination}.\n\n"
+        f"## Traveler Profile\n{profile_yaml}\n\n"
+        f"## Rules\n"
+        f"- Suggest POIs that match the traveler's stated interests.\n"
+        f"- Each suggestion needs: name_en (English name) and priority (always 'agent_suggested').\n"
+        f"- Optionally include name_cn (Chinese name) and style "
+        f"(nature, tech, culture, food, landmark, or coffee).\n"
+        f"- Do NOT repeat any names the traveler already listed in their wishlist.\n"
+        f"- Prioritize iconic or highly-rated places the traveler is likely to enjoy.\n"
+    )
+
+
+def _build_single_poi_search_prompt(
+    poi_name: str, destination: str, profile_yaml: str,
+) -> str:
+    return (
+        f"You are a travel research agent. Search the web for detailed information "
+        f"about \"{poi_name}\" in {destination}.\n\n"
+        f"## What to Find\n"
+        f"- Full name in English AND Chinese\n"
+        f"- Style category (nature, tech, culture, food, landmark, or coffee)\n"
+        f"- Full street address and city\n"
+        f"- Latitude and longitude coordinates\n"
+        f"- Current operating hours\n"
+        f"- Typical visit duration in minutes\n"
+        f"- Brief description (2-3 sentences)\n"
+        f"- Source URL where you found the information\n\n"
+        f"## Traveler Context\n{profile_yaml}\n\n"
+        f"Return all information you can find. Be factual — do not invent details.\n"
+    )
+
+
+async def _search_single_poi(
+    poi_name: str,
+    destination: str,
+    profile_yaml: str,
+    semaphore: asyncio.Semaphore,
+) -> dict[str, Any]:
+    async with semaphore:
+        prompt = _build_single_poi_search_prompt(poi_name, destination, profile_yaml)
+        try:
+            raw = await _run_codex_search(
+                prompt, ctx=None, timeout=config.CODEX_PER_POI_TIMEOUT_SECONDS,
+            )
+            return {"name_en": poi_name, "status": "complete", "raw_text": raw}
+        except Exception as e:
+            log.warning("POI search failed for %s: %s", poi_name, e)
+            return {"name_en": poi_name, "status": "failed", "error": str(e)}
+
+
+async def _search_pois_parallel(
+    state: WorkflowState,
+    poi_list: list[dict[str, Any]],
+    ctx: Optional[Context] = None,
+) -> tuple[str, list[dict[str, Any]]]:
+    import yaml
+
+    prefs = _load_trip_prefs(state.trip_id)
+    profile = _load_merged_profile_from_prefs(state.trip_id, prefs)
+    destination = prefs.get("destination", state.trip_id)
+    profile_yaml = yaml.dump(profile, allow_unicode=True, default_flow_style=False)
+
+    semaphore = asyncio.Semaphore(config.CODEX_PARALLEL_LIMIT)
+    tasks = [
+        asyncio.ensure_future(
+            _search_single_poi(poi["name_en"], destination, profile_yaml, semaphore)
+        )
+        for poi in poi_list
+    ]
+
+    completed = 0
+    total = len(tasks)
+    results: list[dict[str, Any]] = []
+    for coro in asyncio.as_completed(tasks):
+        result = await coro
+        completed += 1
+        results.append(result)
+        _update_poi_progress(state.session_id, "searching", poi_list, results)
+        if ctx:
+            await ctx.report_progress(
+                progress=completed, total=total,
+                message=f"Searched {completed}/{total} POIs ({result['name_en']})",
+            )
+
+    successes = [r for r in results if r["status"] == "complete"]
+    failures = [r for r in results if r["status"] == "failed"]
+
+    if len(successes) < len(poi_list) * 0.5:
+        raise SearchError(
+            f"Majority of POI searches failed ({len(failures)}/{total}). "
+            f"Succeeded: {[s['name_en'] for s in successes]}"
+        )
+
+    merged_raw = "\n\n---\n\n".join(r["raw_text"] for r in successes)
+    return merged_raw, failures
+
+
+def _update_poi_progress(
+    session_id: str,
+    phase: str,
+    poi_list: list[dict[str, Any]],
+    results: list[dict[str, Any]],
+) -> None:
+    from datetime import datetime, timezone
+
+    result_map = {r["name_en"]: r for r in results}
+    per_poi = {}
+    for poi in poi_list:
+        name = poi["name_en"]
+        if name in result_map:
+            r = result_map[name]
+            per_poi[name] = {"status": r["status"], "error": r.get("error")}
+        else:
+            per_poi[name] = {"status": "pending"}
+
+    progress = {
+        "phase": phase,
+        "poi_names": [p["name_en"] for p in poi_list],
+        "results": per_poi,
+        "completed": sum(1 for r in results if r["status"] == "complete"),
+        "failed": sum(1 for r in results if r["status"] == "failed"),
+        "total": len(poi_list),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    config.atomic_write_json(
+        config.session_dir(session_id) / "poi-search-progress.json", progress,
+    )
+
+
 def _build_restaurant_search_prompt(state: WorkflowState) -> str:
     itinerary = artifact_store.load_artifact(state.session_id, "itinerary") or {}
     itinerary_json = json.dumps(itinerary, indent=2, ensure_ascii=False)
@@ -651,16 +787,81 @@ def submit_artifact(
 
 
 # ---------------------------------------------------------------------------
-# Server-side search tools (3)
+# Server-side search tools (4)
 # ---------------------------------------------------------------------------
 
 @mcp.tool(description=(
-    "Discover POI candidates for a trip via web search. "
+    "Quickly identify POI names to search for a trip. "
+    "Extracts wishlist items from profile and uses claude -p to suggest additional names. "
+    "Fast (~10s, no web search). Call before search_pois to preview names."
+))
+async def discover_poi_names(
+    session_id: str,
+    ctx: Context,
+    max_results: Optional[int] = None,
+) -> dict[str, Any]:
+    import yaml
+
+    state = WorkflowState.load(session_id)
+    if state.status != "active":
+        return {"status": "blocked", "reason": f"Trip is {state.status}"}
+
+    if max_results is None:
+        max_results = _compute_poi_target(state)
+    max_results = max(5, min(max_results, 50))
+
+    prefs = _load_trip_prefs(state.trip_id)
+    profile = _load_merged_profile_from_prefs(state.trip_id, prefs)
+    destination = prefs.get("destination", state.trip_id)
+
+    wishlist = profile.get("wishlist") or []
+    poi_names: list[dict[str, Any]] = []
+    for item in wishlist:
+        poi_names.append({
+            "name_en": item.get("name_en", ""),
+            "name_cn": item.get("name_cn", ""),
+            "priority": item.get("priority", "nice_to_have"),
+        })
+
+    remaining = max_results - len(poi_names)
+    if remaining > 0:
+        profile_yaml = yaml.dump(profile, allow_unicode=True, default_flow_style=False)
+        prompt = _build_name_discovery_prompt(destination, profile_yaml, remaining)
+        schema_path = config.CONTRACTS_DIR / "poi-names.json"
+        try:
+            suggestions = await _run_claude_transform(prompt, schema_path)
+            for s in suggestions.get("poi_names", []):
+                poi_names.append({
+                    "name_en": s.get("name_en", ""),
+                    "name_cn": s.get("name_cn", ""),
+                    "priority": s.get("priority", "agent_suggested"),
+                })
+        except SearchError as e:
+            await ctx.info(f"Suggestion generation failed, proceeding with wishlist only: {e}")
+
+    poi_names = poi_names[:max_results]
+
+    result = {"destination": destination, "poi_names": poi_names}
+    config.atomic_write_json(
+        config.session_dir(session_id) / "poi-names.json", result,
+    )
+    _update_poi_progress(session_id, "discovered", poi_names, [])
+
+    return {
+        "status": "complete",
+        "count": len(poi_names),
+        "names": [p["name_en"] for p in poi_names],
+        "next": "Call search_pois(session_id) to collect metadata in parallel.",
+    }
+
+
+@mcp.tool(description=(
+    "Discover POI candidates for a trip via parallel web search. "
     "Returns structured candidates with bilingual names, coordinates, hours, and descriptions. "
     "Runs server-side (agent must NOT call WebSearch). "
+    "Call discover_poi_names first to preview names, or this tool auto-discovers if needed. "
     "max_results defaults to trip_days × max_pois_per_day (from profile); "
-    "override to search fewer (faster) or more (broader pool). "
-    "time_limit_seconds auto-scales with max_results (~25s/POI); override to constrain."
+    "override to search fewer (faster) or more (broader pool)."
 ))
 async def search_pois(
     session_id: str,
@@ -675,22 +876,42 @@ async def search_pois(
     if max_results is None:
         max_results = _compute_poi_target(state)
     max_results = max(5, min(max_results, 50))
-    if time_limit_seconds is None:
-        time_limit_seconds = _estimate_search_timeout(max_results)
-    time_limit_seconds = max(10, min(time_limit_seconds, 900))
 
-    await ctx.info(f"Starting POI search (max {max_results} results, {time_limit_seconds}s limit)...")
-    await ctx.report_progress(progress=0, total=4, message="Starting codex discovery")
+    total_phases = 5
+    await ctx.report_progress(progress=0, total=total_phases, message="Loading POI names")
 
-    search_prompt = _build_poi_search_prompt(state, max_results=max_results)
+    names_path = config.session_dir(session_id) / "poi-names.json"
+    poi_list: list[dict[str, Any]] = []
+    if names_path.exists():
+        saved = json.loads(names_path.read_text(encoding="utf-8"))
+        poi_list = saved.get("poi_names", [])
+    if not poi_list:
+        await ctx.info("No pre-discovered names found, running inline discovery...")
+        result = await discover_poi_names(session_id, ctx, max_results)
+        if result.get("status") != "complete":
+            return result
+        poi_list = json.loads(
+            names_path.read_text(encoding="utf-8")
+        ).get("poi_names", [])
+
+    poi_list = poi_list[:max_results]
+    await ctx.info(
+        f"Searching {len(poi_list)} POIs in parallel "
+        f"(max {config.CODEX_PARALLEL_LIMIT} concurrent)..."
+    )
+    await ctx.report_progress(
+        progress=1, total=total_phases,
+        message=f"Parallel search: {len(poi_list)} POIs",
+    )
+
     try:
-        raw_text = await _run_codex_search(search_prompt, ctx=ctx, timeout=time_limit_seconds)
+        merged_raw, failures = await _search_pois_parallel(state, poi_list, ctx)
     except SearchError as e:
-        await ctx.error(f"POI search failed: {e}")
+        await ctx.error(f"POI parallel search failed: {e}")
         return {"status": "search_failed", "error": str(e), "partial_results": []}
 
-    await ctx.report_progress(progress=1, total=4, message="Structuring results")
-    transform_prompt = _build_poi_transform_prompt(raw_text)
+    await ctx.report_progress(progress=2, total=total_phases, message="Structuring results")
+    transform_prompt = _build_poi_transform_prompt(merged_raw)
     schema_path = config.CONTRACTS_DIR / "poi-candidates.json"
     try:
         result = await _run_claude_transform(transform_prompt, schema_path)
@@ -698,7 +919,7 @@ async def search_pois(
         await ctx.error(f"POI transform failed: {e}")
         return {"status": "search_failed", "error": str(e), "partial_results": []}
 
-    await ctx.report_progress(progress=2, total=4, message="Validating")
+    await ctx.report_progress(progress=3, total=total_phases, message="Validating")
     violations = validation.validate_schema("poi_search", result)
     if violations:
         return {"status": "validation_failed", "violations": violations}
@@ -706,18 +927,25 @@ async def search_pois(
     artifact_store.save_artifact(session_id, "poi_search", result)
     state.complete_stage("poi_search")
 
-    await ctx.report_progress(progress=3, total=4, message="Importing to database")
+    await ctx.report_progress(progress=4, total=total_phases, message="Importing to database")
     from tripdb.bridge import import_pois as _import_pois
     bridge_result = _bridge_call(_import_pois, state.session_id, state.trip_id, result)
     if bridge_result:
         artifact_store.save_artifact(session_id, "candidate-map", bridge_result.get("candidate_map", {}))
 
-    await ctx.report_progress(progress=4, total=4, message="Search complete")
+    failed_names = {f["name_en"] for f in failures}
+    final_results = [
+        {"name_en": p["name_en"], "status": "failed" if p["name_en"] in failed_names else "complete"}
+        for p in poi_list
+    ]
+    _update_poi_progress(session_id, "complete", poi_list, final_results)
+    await ctx.report_progress(progress=5, total=total_phases, message="Search complete")
     candidates = result.get("candidates", [])
     return {
         "status": "complete",
         "candidates_count": len(candidates),
         "sample": [c.get("name_en", "") for c in candidates[:5]],
+        "failed_pois": [f["name_en"] for f in failures],
         "bridge_status": bridge_result.get("status") if bridge_result else None,
         "next_action": _build_action(state),
     }
@@ -1307,6 +1535,32 @@ def get_contract(name: str) -> str:
     if not contract:
         return json.dumps({"error": f"Contract '{name}' not found"})
     return json.dumps(contract, indent=2, ensure_ascii=False)
+
+
+@mcp.resource(
+    "travel://session/{session_id}/poi-names",
+    description="Discovered POI names for search (output of discover_poi_names)",
+    mime_type="application/json",
+)
+def get_poi_names(session_id: str) -> str:
+    path = config.session_dir(session_id) / "poi-names.json"
+    try:
+        return path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return json.dumps({"error": "POI names not yet discovered."})
+
+
+@mcp.resource(
+    "travel://session/{session_id}/poi-search-progress",
+    description="Real-time progress of parallel POI search (phase, per-POI status)",
+    mime_type="application/json",
+)
+def get_poi_search_progress(session_id: str) -> str:
+    path = config.session_dir(session_id) / "poi-search-progress.json"
+    try:
+        return path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return json.dumps({"phase": "not_started"})
 
 
 # ---------------------------------------------------------------------------

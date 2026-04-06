@@ -134,9 +134,19 @@ class TestHeartbeatFires:
 
 
 class TestInitialProgress:
-    def test_search_pois_emits_progress_zero(self, spy_ctx, monkeypatch):
-        from mcp_server import server
+    def test_search_pois_emits_progress_zero(self, spy_ctx, monkeypatch, tmp_path):
+        import json
+
+        from mcp_server import config, server
         from mcp_server.workflow import WorkflowState
+
+        session_dir = tmp_path / "test-session"
+        session_dir.mkdir()
+        (session_dir / "poi-names.json").write_text(json.dumps({
+            "destination": "Test",
+            "poi_names": [{"name_en": "Test POI", "priority": "must_visit"}],
+        }))
+        monkeypatch.setattr(config, "session_dir", lambda sid: session_dir)
 
         fake_state = type("S", (), {
             "status": "active",
@@ -147,8 +157,7 @@ class TestInitialProgress:
         })()
 
         monkeypatch.setattr(WorkflowState, "load", lambda sid: fake_state)
-        monkeypatch.setattr(server, "_build_poi_search_prompt", lambda s, **kw: "prompt")
-        monkeypatch.setattr(server, "_run_codex_search", AsyncMock(return_value="raw"))
+        monkeypatch.setattr(server, "_search_pois_parallel", AsyncMock(return_value=("raw", [])))
         monkeypatch.setattr(server, "_run_claude_transform", AsyncMock(return_value={"candidates": []}))
         monkeypatch.setattr(server, "validation", type("V", (), {
             "validate_schema": staticmethod(lambda *a: [])
@@ -166,4 +175,119 @@ class TestInitialProgress:
         assert len(progress_calls) >= 1
         first = progress_calls[0]
         assert first.kwargs.get("progress", first.args[0] if first.args else None) == 0
-        assert first.kwargs.get("total", first.args[1] if len(first.args) > 1 else None) == 4
+        assert first.kwargs.get("total", first.args[1] if len(first.args) > 1 else None) == 5
+
+
+class TestParallelPOISearch:
+    def test_partial_failure_continues(self, monkeypatch, tmp_path):
+        import json
+
+        from mcp_server import config, server
+        from mcp_server.workflow import WorkflowState
+
+        session_dir = tmp_path / "test-session"
+        session_dir.mkdir()
+        monkeypatch.setattr(config, "session_dir", lambda sid: session_dir)
+        monkeypatch.setattr(config, "CODEX_PARALLEL_LIMIT", 5)
+        monkeypatch.setattr(config, "CODEX_PER_POI_TIMEOUT_SECONDS", 5)
+
+        call_count = 0
+
+        async def fake_codex(prompt, ctx=None, timeout=None):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 2:
+                raise server.SearchError("timeout")
+            return f"raw data for POI {call_count}"
+
+        monkeypatch.setattr(server, "_run_codex_search", fake_codex)
+
+        fake_state = type("S", (), {
+            "status": "active",
+            "session_id": "test-session",
+            "trip_id": "test-trip",
+        })()
+
+        monkeypatch.setattr(server, "_load_trip_prefs", lambda tid: {
+            "destination": "Test City",
+        })
+        monkeypatch.setattr(server, "_load_merged_profile_from_prefs", lambda tid, prefs: {})
+
+        poi_list = [{"name_en": f"POI {i}"} for i in range(5)]
+        merged_raw, failures = _run_async(
+            server._search_pois_parallel(fake_state, poi_list)
+        )
+
+        assert len(failures) == 2
+        assert "raw data" in merged_raw
+
+    def test_majority_failure_raises(self, monkeypatch, tmp_path):
+        from mcp_server import config, server
+        from mcp_server.workflow import WorkflowState
+
+        session_dir = tmp_path / "test-session"
+        session_dir.mkdir()
+        monkeypatch.setattr(config, "session_dir", lambda sid: session_dir)
+        monkeypatch.setattr(config, "CODEX_PARALLEL_LIMIT", 5)
+        monkeypatch.setattr(config, "CODEX_PER_POI_TIMEOUT_SECONDS", 5)
+
+        call_count = 0
+
+        async def fake_codex(prompt, ctx=None, timeout=None):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 4:
+                raise server.SearchError("timeout")
+            return "raw data"
+
+        monkeypatch.setattr(server, "_run_codex_search", fake_codex)
+        monkeypatch.setattr(server, "_load_trip_prefs", lambda tid: {
+            "destination": "Test City",
+        })
+        monkeypatch.setattr(server, "_load_merged_profile_from_prefs", lambda tid, prefs: {})
+
+        fake_state = type("S", (), {
+            "status": "active",
+            "session_id": "test-session",
+            "trip_id": "test-trip",
+        })()
+
+        poi_list = [{"name_en": f"POI {i}"} for i in range(5)]
+        with pytest.raises(server.SearchError, match="Majority"):
+            _run_async(server._search_pois_parallel(fake_state, poi_list))
+
+    def test_progress_file_updated(self, monkeypatch, tmp_path):
+        import json
+
+        from mcp_server import config, server
+
+        session_dir = tmp_path / "test-session"
+        session_dir.mkdir()
+        monkeypatch.setattr(config, "session_dir", lambda sid: session_dir)
+        monkeypatch.setattr(config, "CODEX_PARALLEL_LIMIT", 5)
+        monkeypatch.setattr(config, "CODEX_PER_POI_TIMEOUT_SECONDS", 5)
+
+        async def fake_codex(prompt, ctx=None, timeout=None):
+            return "raw data"
+
+        monkeypatch.setattr(server, "_run_codex_search", fake_codex)
+        monkeypatch.setattr(server, "_load_trip_prefs", lambda tid: {
+            "destination": "Test City",
+        })
+        monkeypatch.setattr(server, "_load_merged_profile_from_prefs", lambda tid, prefs: {})
+
+        fake_state = type("S", (), {
+            "status": "active",
+            "session_id": "test-session",
+            "trip_id": "test-trip",
+        })()
+
+        poi_list = [{"name_en": f"POI {i}"} for i in range(3)]
+        _run_async(server._search_pois_parallel(fake_state, poi_list))
+
+        progress_path = session_dir / "poi-search-progress.json"
+        assert progress_path.exists()
+        progress = json.loads(progress_path.read_text())
+        assert progress["phase"] == "searching"
+        assert progress["completed"] == 3
+        assert progress["total"] == 3

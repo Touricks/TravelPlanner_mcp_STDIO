@@ -81,6 +81,13 @@ def mock_search(monkeypatch):
         call_log.append(stage)
         data = {
             "poi-candidates": SAMPLE_POI_CANDIDATES,
+            "poi-names": {
+                "destination": "San Francisco",
+                "poi_names": [
+                    {"name_en": c["name_en"], "priority": c.get("priority", "agent_suggested")}
+                    for c in SAMPLE_POI_CANDIDATES["candidates"]
+                ],
+            },
             "restaurants": SAMPLE_RESTAURANTS,
             "hotels": SAMPLE_HOTELS,
         }

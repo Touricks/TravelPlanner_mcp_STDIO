@@ -1,0 +1,85 @@
+{
+  "trip_id": "2026-04-sf-to-la-coast",
+  "recommendations": [
+    {
+      "day_num": 1,
+      "meal_type": "lunch",
+      "name_en": "Boudin Bakery",
+      "name_cn": "波丁面包坊",
+      "cuisine": "American",
+      "price_tier": "budget",
+      "address": "160 Jefferson St, San Francisco, CA 94133",
+      "near_poi": "Fishermans Wharf"
+    },
+    {
+      "day_num": 1,
+      "meal_type": "dinner",
+      "name_en": "Scoma's",
+      "name_cn": "斯科玛餐厅",
+      "cuisine": "Seafood",
+      "price_tier": "moderate",
+      "address": "1 Al Scoma Way, San Francisco, CA 94133",
+      "near_poi": "Fishermans Wharf"
+    },
+    {
+      "day_num": 2,
+      "meal_type": "lunch",
+      "name_en": "Old Fishermans Grotto",
+      "name_cn": "老渔人洞穴餐厅",
+      "cuisine": "Seafood",
+      "price_tier": "moderate",
+      "address": "39 Fishermans Wharf, Monterey, CA 93940",
+      "near_poi": "Monterey Bay Aquarium"
+    },
+    {
+      "day_num": 2,
+      "meal_type": "dinner",
+      "name_en": "Passionfish",
+      "name_cn": "热情鱼餐厅",
+      "cuisine": "Farm-to-table",
+      "price_tier": "moderate",
+      "address": "701 Lighthouse Ave, Pacific Grove, CA 93950",
+      "near_poi": "Point Lobos State Reserve"
+    },
+    {
+      "day_num": 3,
+      "meal_type": "lunch",
+      "name_en": "Big Sur Bakery",
+      "name_cn": "大苏尔面包坊",
+      "cuisine": "American",
+      "price_tier": "moderate",
+      "address": "47540 CA-1, Big Sur, CA 93920",
+      "near_poi": "McWay Falls"
+    },
+    {
+      "day_num": 3,
+      "meal_type": "dinner",
+      "name_en": "Sebastian's General Store",
+      "name_cn": "塞巴斯蒂安杂货店",
+      "cuisine": "American",
+      "price_tier": "budget",
+      "address": "442 SLO San Simeon Rd, San Simeon, CA 93452",
+      "near_poi": "Hearst Castle"
+    },
+    {
+      "day_num": 4,
+      "meal_type": "lunch",
+      "name_en": "La Super-Rica Taqueria",
+      "name_cn": "超级墨西哥玉米饼",
+      "cuisine": "Mexican",
+      "price_tier": "budget",
+      "address": "622 N Milpas St, Santa Barbara, CA 93103",
+      "near_poi": "Santa Barbara Mission"
+    },
+    {
+      "day_num": 4,
+      "meal_type": "dinner",
+      "name_en": "Brophy Bros",
+      "name_cn": "布罗菲兄弟",
+      "cuisine": "Seafood",
+      "price_tier": "moderate",
+      "address": "119 Harbor Way, Santa Barbara, CA 93109",
+      "near_poi": "Stearns Wharf"
+    }
+  ]
+}

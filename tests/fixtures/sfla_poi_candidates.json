@@ -1,0 +1,137 @@
+{
+  "destination": "SF to LA Coast",
+  "candidates": [
+    {
+      "candidate_id": "df461a9f78c2",
+      "name_en": "Fishermans Wharf",
+      "name_cn": "渔人码头",
+      "style": "landmark",
+      "address": "160 Jefferson St, San Francisco, CA 94133",
+      "city": "San Francisco",
+      "duration_minutes": 90,
+      "description": "Historic waterfront with sea lions and seafood stalls",
+      "priority": "nice_to_have"
+    },
+    {
+      "candidate_id": "22d98ec2b5dd",
+      "name_en": "Palace of Fine Arts",
+      "name_cn": "艺术宫",
+      "style": "landmark",
+      "address": "3601 Lyon St, San Francisco, CA 94123",
+      "city": "San Francisco",
+      "duration_minutes": 45,
+      "description": "Romanesque rotunda and colonnades at the Marina",
+      "priority": "nice_to_have"
+    },
+    {
+      "candidate_id": "e3dbda989077",
+      "name_en": "Golden Gate Park",
+      "name_cn": "金门公园",
+      "style": "nature",
+      "address": "501 Stanyan St, San Francisco, CA 94117",
+      "city": "San Francisco",
+      "duration_minutes": 120,
+      "description": "Urban park with gardens, bison paddock, and museums",
+      "priority": "nice_to_have"
+    },
+    {
+      "candidate_id": "57fd8f050730",
+      "name_en": "Monterey Bay Aquarium",
+      "name_cn": "蒙特雷湾水族馆",
+      "style": "culture",
+      "address": "886 Cannery Row, Monterey, CA 93940",
+      "city": "Monterey",
+      "duration_minutes": 120,
+      "description": "World-class aquarium featuring sea otters and kelp forest",
+      "priority": "must_visit"
+    },
+    {
+      "candidate_id": "b07ec5129523",
+      "name_en": "Point Lobos State Reserve",
+      "name_cn": "罗伯斯角州立保护区",
+      "style": "nature",
+      "address": "62 CA-1, Carmel-By-The-Sea, CA 93923",
+      "city": "Carmel-By-The-Sea",
+      "duration_minutes": 90,
+      "description": "Coastal reserve with tide pools and sea lion colonies",
+      "priority": "nice_to_have"
+    },
+    {
+      "candidate_id": "aeb351da381a",
+      "name_en": "Bixby Bridge",
+      "name_cn": "比克斯比大桥",
+      "style": "landmark",
+      "address": "CA-1, Big Sur, CA 93920",
+      "city": "Big Sur",
+      "duration_minutes": 30,
+      "description": "Iconic concrete arch bridge on the Pacific Coast Highway",
+      "priority": "must_visit"
+    },
+    {
+      "candidate_id": "21646859d1aa",
+      "name_en": "McWay Falls",
+      "name_cn": "麦克韦瀑布",
+      "style": "nature",
+      "address": "Julia Pfeiffer Burns State Park, Big Sur, CA 93920",
+      "city": "Big Sur",
+      "duration_minutes": 60,
+      "description": "80-foot waterfall dropping onto a pristine beach cove",
+      "priority": "must_visit"
+    },
+    {
+      "candidate_id": "cc6c9833beca",
+      "name_en": "Piedras Blancas Elephant Seal Rookery",
+      "name_cn": "象海豹栖息地",
+      "style": "nature",
+      "address": "CA-1, San Simeon, CA 93452",
+      "city": "San Simeon",
+      "duration_minutes": 60,
+      "description": "Year-round elephant seal viewing along the coast",
+      "priority": "must_visit"
+    },
+    {
+      "candidate_id": "c54b6b2ae9c7",
+      "name_en": "Hearst Castle",
+      "name_cn": "赫氏古堡",
+      "style": "landmark",
+      "address": "750 Hearst Castle Rd, San Simeon, CA 93452",
+      "city": "San Simeon",
+      "duration_minutes": 90,
+      "description": "Historic hilltop estate with opulent architecture and gardens",
+      "priority": "must_visit"
+    },
+    {
+      "candidate_id": "2795278c7b58",
+      "name_en": "Santa Barbara Mission",
+      "name_cn": "圣巴巴拉教堂",
+      "style": "culture",
+      "address": "2201 Laguna St, Santa Barbara, CA 93105",
+      "city": "Santa Barbara",
+      "duration_minutes": 90,
+      "description": "Queen of the Missions, founded 1786 with museum",
+      "priority": "must_visit"
+    },
+    {
+      "candidate_id": "184d504b3a48",
+      "name_en": "Santa Barbara Botanic Garden",
+      "name_cn": "圣巴巴拉植物园",
+      "style": "nature",
+      "address": "1212 Mission Canyon Rd, Santa Barbara, CA 93105",
+      "city": "Santa Barbara",
+      "duration_minutes": 90,
+      "description": "Native California plant garden in Mission Canyon",
+      "priority": "nice_to_have"
+    },
+    {
+      "candidate_id": "0b645fa1bde0",
+      "name_en": "Stearns Wharf",
+      "name_cn": "斯特恩斯码头",
+      "style": "landmark",
+      "address": "217 Stearns Wharf, Santa Barbara, CA 93101",
+      "city": "Santa Barbara",
+      "duration_minutes": 60,
+      "description": "Oldest working wharf on the US West Coast",
+      "priority": "nice_to_have"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "trip_id": "2026-04-sf-to-la-coast",
+  "recommendations": [
+    {
+      "name": "Hotel Vitale",
+      "name_cn": "维塔尔酒店",
+      "address": "8 Mission St, San Francisco, CA 94105",
+      "city": "San Francisco",
+      "check_in": "2026-04-19",
+      "check_out": "2026-04-20",
+      "near_region": "San Francisco",
+      "price_tier": "moderate"
+    },
+    {
+      "name": "Monterey Plaza Hotel",
+      "name_cn": "蒙特雷广场酒店",
+      "address": "400 Cannery Row, Monterey, CA 93940",
+      "city": "Monterey",
+      "check_in": "2026-04-20",
+      "check_out": "2026-04-21",
+      "near_region": "Monterey",
+      "price_tier": "moderate"
+    },
+    {
+      "name": "Hotel Santa Barbara",
+      "name_cn": "圣巴巴拉酒店",
+      "address": "533 State St, Santa Barbara, CA 93101",
+      "city": "Santa Barbara",
+      "check_in": "2026-04-21",
+      "check_out": "2026-04-22",
+      "near_region": "Santa Barbara",
+      "price_tier": "moderate"
+    }
+  ]
+}

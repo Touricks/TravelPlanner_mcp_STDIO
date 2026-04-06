@@ -18,6 +18,13 @@ MIAMI_ITINERARY = json.loads((_DIR / "miami_itinerary.json").read_text())
 MIAMI_RESTAURANTS = json.loads((_DIR / "miami_restaurants.json").read_text())
 MIAMI_HOTELS = json.loads((_DIR / "miami_hotels.json").read_text())
 
+# ── SF-LA coastal fixtures (loaded from JSON) ──────────
+
+SFLA_POI_CANDIDATES = json.loads((_DIR / "sfla_poi_candidates.json").read_text())
+SFLA_ITINERARY = json.loads((_DIR / "sfla_itinerary.json").read_text())
+SFLA_RESTAURANTS = json.loads((_DIR / "sfla_restaurants.json").read_text())
+SFLA_HOTELS = json.loads((_DIR / "sfla_hotels.json").read_text())
+
 # ── POI Candidates (5 POIs) ───────────────────────────────
 
 SAMPLE_POI_CANDIDATES = {

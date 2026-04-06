@@ -1,0 +1,150 @@
+{
+  "trip_id": "2026-04-sf-to-la-coast",
+  "start_date": "2026-04-19",
+  "end_date": "2026-04-22",
+  "days": [
+    {
+      "date": "2026-04-19",
+      "day_num": 1,
+      "region": "San Francisco",
+      "items": [
+        {
+          "candidate_id": "df461a9f78c2",
+          "name_en": "Fishermans Wharf",
+          "name_cn": "渔人码头",
+          "style": "landmark",
+          "start_time": "13:00",
+          "end_time": "14:30",
+          "duration_minutes": 90
+        },
+        {
+          "candidate_id": "22d98ec2b5dd",
+          "name_en": "Palace of Fine Arts",
+          "name_cn": "艺术宫",
+          "style": "landmark",
+          "start_time": "15:00",
+          "end_time": "15:45",
+          "duration_minutes": 45
+        }
+      ]
+    },
+    {
+      "date": "2026-04-20",
+      "day_num": 2,
+      "region": "SF / Monterey",
+      "items": [
+        {
+          "candidate_id": "e3dbda989077",
+          "name_en": "Golden Gate Park",
+          "name_cn": "金门公园",
+          "style": "nature",
+          "start_time": "08:30",
+          "end_time": "10:30",
+          "duration_minutes": 120
+        },
+        {
+          "candidate_id": "57fd8f050730",
+          "name_en": "Monterey Bay Aquarium",
+          "name_cn": "蒙特雷湾水族馆",
+          "style": "culture",
+          "start_time": "13:00",
+          "end_time": "15:00",
+          "duration_minutes": 120,
+          "preceding_travel_minutes": 120
+        },
+        {
+          "candidate_id": "b07ec5129523",
+          "name_en": "Point Lobos State Reserve",
+          "name_cn": "罗伯斯角州立保护区",
+          "style": "nature",
+          "start_time": "15:30",
+          "end_time": "17:00",
+          "duration_minutes": 90,
+          "preceding_travel_minutes": 30
+        }
+      ]
+    },
+    {
+      "date": "2026-04-21",
+      "day_num": 3,
+      "region": "Big Sur / San Simeon",
+      "items": [
+        {
+          "candidate_id": "aeb351da381a",
+          "name_en": "Bixby Bridge",
+          "name_cn": "比克斯比大桥",
+          "style": "landmark",
+          "start_time": "09:00",
+          "end_time": "09:30",
+          "duration_minutes": 30
+        },
+        {
+          "candidate_id": "21646859d1aa",
+          "name_en": "McWay Falls",
+          "name_cn": "麦克韦瀑布",
+          "style": "nature",
+          "start_time": "10:00",
+          "end_time": "11:00",
+          "duration_minutes": 60,
+          "preceding_travel_minutes": 30
+        },
+        {
+          "candidate_id": "cc6c9833beca",
+          "name_en": "Piedras Blancas Elephant Seal Rookery",
+          "name_cn": "象海豹栖息地",
+          "style": "nature",
+          "start_time": "12:30",
+          "end_time": "13:30",
+          "duration_minutes": 60,
+          "preceding_travel_minutes": 60
+        },
+        {
+          "candidate_id": "c54b6b2ae9c7",
+          "name_en": "Hearst Castle",
+          "name_cn": "赫氏古堡",
+          "style": "landmark",
+          "start_time": "14:00",
+          "end_time": "15:30",
+          "duration_minutes": 90,
+          "preceding_travel_minutes": 15
+        }
+      ]
+    },
+    {
+      "date": "2026-04-22",
+      "day_num": 4,
+      "region": "Santa Barbara",
+      "items": [
+        {
+          "candidate_id": "2795278c7b58",
+          "name_en": "Santa Barbara Mission",
+          "name_cn": "圣巴巴拉教堂",
+          "style": "culture",
+          "start_time": "09:30",
+          "end_time": "11:00",
+          "duration_minutes": 90
+        },
+        {
+          "candidate_id": "184d504b3a48",
+          "name_en": "Santa Barbara Botanic Garden",
+          "name_cn": "圣巴巴拉植物园",
+          "style": "nature",
+          "start_time": "11:30",
+          "end_time": "13:00",
+          "duration_minutes": 90,
+          "preceding_travel_minutes": 15
+        },
+        {
+          "candidate_id": "0b645fa1bde0",
+          "name_en": "Stearns Wharf",
+          "name_cn": "斯特恩斯码头",
+          "style": "landmark",
+          "start_time": "14:00",
+          "end_time": "15:00",
+          "duration_minutes": 60,
+          "preceding_travel_minutes": 30
+        }
+      ]
+    }
+  ]
+}

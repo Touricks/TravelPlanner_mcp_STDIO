@@ -285,6 +285,7 @@ async def _run_codex_search(
     effective_timeout = timeout or config.CODEX_SEARCH_TIMEOUT_SECONDS
     proc = await asyncio.create_subprocess_exec(
         "codex", "exec", "--skip-git-repo-check", prompt,
+        stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -336,11 +337,14 @@ async def _run_codex_search(
 
 
 async def _run_claude_transform(
-    transform_prompt: str, schema_path: Path,
+    transform_prompt: str,
+    schema_path: Path,
+    timeout: Optional[int] = None,
 ) -> dict:
     """Run claude -p --bare for structured transformation only (no web search)."""
     claude_cli = config.find_claude_cli()
     schema = schema_path.read_text(encoding="utf-8")
+    effective_timeout = timeout or config.TRANSFORM_TIMEOUT_SECONDS
 
     proc = await asyncio.create_subprocess_exec(
         claude_cli, "-p", transform_prompt,
@@ -348,19 +352,20 @@ async def _run_claude_transform(
         "--output-format", "json",
         "--json-schema", schema,
         "--max-turns", "3",
+        stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
 
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(
-            proc.communicate(), timeout=config.TRANSFORM_TIMEOUT_SECONDS,
+            proc.communicate(), timeout=effective_timeout,
         )
     except asyncio.TimeoutError:
         proc.kill()
         await proc.wait()
         raise SearchError(
-            f"Transform timed out after {config.TRANSFORM_TIMEOUT_SECONDS}s"
+            f"Transform timed out after {effective_timeout}s"
         )
 
     if proc.returncode != 0:
@@ -433,12 +438,16 @@ def _build_poi_search_prompt(state: WorkflowState, max_results: int = 15) -> str
     )
 
 
-def _build_poi_transform_prompt(raw_text: str) -> str:
+def _build_per_poi_transform_prompt(
+    poi_name: str, raw_text: str, destination: str, priority: str,
+) -> str:
     return (
-        f"Structure the following raw POI research findings into the required JSON format.\n\n"
+        f"Structure the following raw research findings about \"{poi_name}\" "
+        f"in {destination} into a single POI candidate JSON object.\n\n"
         f"## Raw Findings\n{raw_text}\n\n"
         f"## Rules\n"
-        f"- Map each finding to a candidate object in the schema.\n"
+        f"- Map the findings to a single candidate object matching the schema.\n"
+        f"- The POI's priority is '{priority}' — include this in the output.\n"
         f"- Do NOT invent values for fields absent from the source text.\n"
         f"- Omit optional fields rather than guessing.\n"
         f"- Generate candidate_id as sha256(name_en|address)[:12].\n"
@@ -482,69 +491,193 @@ def _build_single_poi_search_prompt(
     )
 
 
+def _sanitize_poi_filename(poi_name: str) -> str:
+    """Convert POI name to a safe filename stem (no extension)."""
+    import hashlib
+    import re
+    slug = re.sub(r'[^a-z0-9]+', '-', poi_name.lower()).strip('-')[:80]
+    suffix = hashlib.sha256(poi_name.encode()).hexdigest()[:6]
+    return f"{slug}-{suffix}" if slug else suffix
+
+
 async def _search_single_poi(
     poi_name: str,
     destination: str,
     profile_yaml: str,
     semaphore: asyncio.Semaphore,
+    per_poi_timeout: int,
+    session_id: str,
 ) -> dict[str, Any]:
     async with semaphore:
-        prompt = _build_single_poi_search_prompt(poi_name, destination, profile_yaml)
-        try:
-            raw = await _run_codex_search(
-                prompt, ctx=None, timeout=config.CODEX_PER_POI_TIMEOUT_SECONDS,
-            )
-            return {"name_en": poi_name, "status": "complete", "raw_text": raw}
-        except Exception as e:
-            log.warning("POI search failed for %s: %s", poi_name, e)
-            return {"name_en": poi_name, "status": "failed", "error": str(e)}
+        last_error: Optional[Exception] = None
+        for attempt in range(config.CODEX_SEARCH_MAX_RETRIES + 1):
+            try:
+                prompt = _build_single_poi_search_prompt(poi_name, destination, profile_yaml)
+                raw = await _run_codex_search(
+                    prompt, ctx=None, timeout=per_poi_timeout,
+                )
+                safe_name = _sanitize_poi_filename(poi_name)
+                raw_path = config.session_dir(session_id) / "poi-raw" / f"{safe_name}.txt"
+                config.atomic_write_text(raw_path, raw)
+                return {"name_en": poi_name, "status": "complete", "raw_path": str(raw_path)}
+            except SearchError as e:
+                last_error = e
+                if attempt < config.CODEX_SEARCH_MAX_RETRIES:
+                    log.info("Retrying POI search for %s (attempt %d): %s", poi_name, attempt + 1, e)
+                    await asyncio.sleep(2 ** attempt)
+            except Exception as e:
+                log.warning("POI search failed for %s: %s", poi_name, e)
+                return {"name_en": poi_name, "status": "failed", "error": str(e)}
+        log.warning("POI search failed for %s after %d attempts: %s",
+                     poi_name, config.CODEX_SEARCH_MAX_RETRIES + 1, last_error)
+        return {"name_en": poi_name, "status": "failed", "error": str(last_error)}
+
+
+async def _transform_single_poi(
+    poi_name: str,
+    raw_path: Path,
+    destination: str,
+    priority: str,
+    semaphore: asyncio.Semaphore,
+    session_id: str,
+) -> dict[str, Any]:
+    async with semaphore:
+        last_error: Optional[Exception] = None
+        for attempt in range(2):
+            try:
+                raw_text = raw_path.read_text(encoding="utf-8")
+                prompt = _build_per_poi_transform_prompt(
+                    poi_name, raw_text, destination, priority,
+                )
+                schema_path = config.CONTRACTS_DIR / "poi-candidate-single.json"
+                result = await _run_claude_transform(
+                    prompt, schema_path,
+                    timeout=config.TRANSFORM_PER_POI_TIMEOUT_SECONDS,
+                )
+                safe_name = _sanitize_poi_filename(poi_name)
+                out_path = config.session_dir(session_id) / "poi-transforms" / f"{safe_name}.json"
+                config.atomic_write_json(out_path, result)
+                return {
+                    "name_en": poi_name,
+                    "status": "complete",
+                    "candidate": result,
+                    "transform_path": str(out_path),
+                }
+            except Exception as e:
+                last_error = e
+                if attempt == 0:
+                    log.info("Retrying POI transform for %s: %s", poi_name, e)
+                    await asyncio.sleep(1)
+        log.warning("POI transform failed for %s: %s", poi_name, last_error)
+        return {"name_en": poi_name, "status": "failed", "error": str(last_error)}
+
+
+def _merge_poi_transforms(
+    destination: str,
+    transform_results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    from datetime import date
+    candidates = []
+    for tr in transform_results:
+        if tr["status"] == "complete" and "candidate" in tr:
+            candidates.append(tr["candidate"])
+    return {
+        "destination": destination,
+        "search_date": date.today().isoformat(),
+        "candidates": candidates,
+    }
 
 
 async def _search_pois_parallel(
     state: WorkflowState,
     poi_list: list[dict[str, Any]],
     ctx: Optional[Context] = None,
-) -> tuple[str, list[dict[str, Any]]]:
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     import yaml
 
     prefs = _load_trip_prefs(state.trip_id)
     profile = _load_merged_profile_from_prefs(state.trip_id, prefs)
     destination = prefs.get("destination", state.trip_id)
     profile_yaml = yaml.dump(profile, allow_unicode=True, default_flow_style=False)
+    session_id = state.session_id
 
-    semaphore = asyncio.Semaphore(config.CODEX_PARALLEL_LIMIT)
-    tasks = [
+    per_poi_timeout = max(
+        config.CODEX_PER_POI_TIMEOUT_SECONDS,
+        len(poi_list) * config.CODEX_SECONDS_PER_POI_SCALING,
+    )
+    total = len(poi_list)
+
+    # --- Phase 1: parallel codex search ---
+    search_sem = asyncio.Semaphore(config.CODEX_PARALLEL_LIMIT)
+    search_tasks = [
         asyncio.ensure_future(
-            _search_single_poi(poi["name_en"], destination, profile_yaml, semaphore)
+            _search_single_poi(
+                poi["name_en"], destination, profile_yaml,
+                search_sem, per_poi_timeout, session_id,
+            )
         )
         for poi in poi_list
     ]
 
-    completed = 0
-    total = len(tasks)
-    results: list[dict[str, Any]] = []
-    for coro in asyncio.as_completed(tasks):
+    search_completed = 0
+    search_results: list[dict[str, Any]] = []
+    for coro in asyncio.as_completed(search_tasks):
         result = await coro
-        completed += 1
-        results.append(result)
-        _update_poi_progress(state.session_id, "searching", poi_list, results)
+        search_completed += 1
+        search_results.append(result)
+        _update_poi_progress(session_id, "searching", poi_list, search_results)
         if ctx:
             await ctx.report_progress(
-                progress=completed, total=total,
-                message=f"Searched {completed}/{total} POIs ({result['name_en']})",
+                progress=search_completed, total=total * 2,
+                message=f"Searched {search_completed}/{total} POIs ({result['name_en']})",
             )
 
-    successes = [r for r in results if r["status"] == "complete"]
-    failures = [r for r in results if r["status"] == "failed"]
+    successes = [r for r in search_results if r["status"] == "complete"]
+    search_failures = [r for r in search_results if r["status"] == "failed"]
 
     if len(successes) < len(poi_list) * 0.5:
         raise SearchError(
-            f"Majority of POI searches failed ({len(failures)}/{total}). "
+            f"Majority of POI searches failed ({len(search_failures)}/{total}). "
             f"Succeeded: {[s['name_en'] for s in successes]}"
         )
 
-    merged_raw = "\n\n---\n\n".join(r["raw_text"] for r in successes)
-    return merged_raw, failures
+    # --- Phase 2: parallel claude transform ---
+    priority_map = {p["name_en"]: p.get("priority", "agent_suggested") for p in poi_list}
+    transform_sem = asyncio.Semaphore(config.TRANSFORM_PARALLEL_LIMIT)
+    transform_tasks = [
+        asyncio.ensure_future(
+            _transform_single_poi(
+                r["name_en"],
+                Path(r["raw_path"]),
+                destination,
+                priority_map.get(r["name_en"], "agent_suggested"),
+                transform_sem,
+                session_id,
+            )
+        )
+        for r in successes
+    ]
+
+    transform_completed = 0
+    transform_results: list[dict[str, Any]] = []
+    for coro in asyncio.as_completed(transform_tasks):
+        result = await coro
+        transform_completed += 1
+        transform_results.append(result)
+        _update_poi_progress(session_id, "transforming", poi_list,
+                             search_results + transform_results)
+        if ctx:
+            await ctx.report_progress(
+                progress=total + transform_completed, total=total * 2,
+                message=f"Structured {transform_completed}/{len(successes)} POIs ({result['name_en']})",
+            )
+
+    transform_failures = [r for r in transform_results if r["status"] == "failed"]
+    all_failures = search_failures + transform_failures
+
+    # --- Phase 3: merge ---
+    merged = _merge_poi_transforms(destination, transform_results)
+    return merged, all_failures
 
 
 def _update_poi_progress(
@@ -877,7 +1010,7 @@ async def search_pois(
         max_results = _compute_poi_target(state)
     max_results = max(5, min(max_results, 50))
 
-    total_phases = 5
+    total_phases = 4
     await ctx.report_progress(progress=0, total=total_phases, message="Loading POI names")
 
     names_path = config.session_dir(session_id) / "poi-names.json"
@@ -905,21 +1038,12 @@ async def search_pois(
     )
 
     try:
-        merged_raw, failures = await _search_pois_parallel(state, poi_list, ctx)
+        result, failures = await _search_pois_parallel(state, poi_list, ctx)
     except SearchError as e:
         await ctx.error(f"POI parallel search failed: {e}")
         return {"status": "search_failed", "error": str(e), "partial_results": []}
 
-    await ctx.report_progress(progress=2, total=total_phases, message="Structuring results")
-    transform_prompt = _build_poi_transform_prompt(merged_raw)
-    schema_path = config.CONTRACTS_DIR / "poi-candidates.json"
-    try:
-        result = await _run_claude_transform(transform_prompt, schema_path)
-    except SearchError as e:
-        await ctx.error(f"POI transform failed: {e}")
-        return {"status": "search_failed", "error": str(e), "partial_results": []}
-
-    await ctx.report_progress(progress=3, total=total_phases, message="Validating")
+    await ctx.report_progress(progress=2, total=total_phases, message="Validating")
     violations = validation.validate_schema("poi_search", result)
     if violations:
         return {"status": "validation_failed", "violations": violations}
@@ -927,7 +1051,7 @@ async def search_pois(
     artifact_store.save_artifact(session_id, "poi_search", result)
     state.complete_stage("poi_search")
 
-    await ctx.report_progress(progress=4, total=total_phases, message="Importing to database")
+    await ctx.report_progress(progress=3, total=total_phases, message="Importing to database")
     from tripdb.bridge import import_pois as _import_pois
     bridge_result = _bridge_call(_import_pois, state.session_id, state.trip_id, result)
     if bridge_result:
@@ -939,7 +1063,7 @@ async def search_pois(
         for p in poi_list
     ]
     _update_poi_progress(session_id, "complete", poi_list, final_results)
-    await ctx.report_progress(progress=5, total=total_phases, message="Search complete")
+    await ctx.report_progress(progress=4, total=total_phases, message="Search complete")
     candidates = result.get("candidates", [])
     return {
         "status": "complete",

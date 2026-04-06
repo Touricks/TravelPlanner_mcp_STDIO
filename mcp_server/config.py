@@ -76,6 +76,10 @@ TRANSFORM_TIMEOUT_SECONDS = 60
 SEARCH_TIMEOUT_SECONDS = 600  # deprecated alias — remove after callers migrate
 CODEX_PARALLEL_LIMIT = max(1, int(os.environ.get("CODEX_PARALLEL_LIMIT", "5")))
 CODEX_PER_POI_TIMEOUT_SECONDS = int(os.environ.get("CODEX_PER_POI_TIMEOUT_SECONDS", "60"))
+CODEX_SECONDS_PER_POI_SCALING = 30
+CODEX_SEARCH_MAX_RETRIES = int(os.environ.get("CODEX_SEARCH_MAX_RETRIES", "1"))
+TRANSFORM_PARALLEL_LIMIT = max(1, int(os.environ.get("TRANSFORM_PARALLEL_LIMIT", "3")))
+TRANSFORM_PER_POI_TIMEOUT_SECONDS = int(os.environ.get("TRANSFORM_PER_POI_TIMEOUT_SECONDS", "45"))
 SESSION_TTL_HOURS = 24
 
 
@@ -110,6 +114,19 @@ def atomic_write_json(path: Path, data: Any) -> None:
     try:
         with open(fd, "w", encoding="utf-8") as f:
             f.write(content)
+        Path(tmp_path).replace(path)
+    except BaseException:
+        Path(tmp_path).unlink(missing_ok=True)
+        raise
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    """Write plain text to path atomically via tmp file + rename."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with open(fd, "w", encoding="utf-8") as f:
+            f.write(text)
         Path(tmp_path).replace(path)
     except BaseException:
         Path(tmp_path).unlink(missing_ok=True)

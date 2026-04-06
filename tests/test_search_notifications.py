@@ -133,6 +133,29 @@ class TestHeartbeatFires:
             _run_async(server._run_codex_search("test prompt", ctx=spy_ctx))
 
 
+def _patch_parallel_config(monkeypatch, tmp_path):
+    """Shared setup for parallel search tests."""
+    from mcp_server import config
+    session_dir = tmp_path / "test-session"
+    session_dir.mkdir()
+    monkeypatch.setattr(config, "session_dir", lambda sid: session_dir)
+    monkeypatch.setattr(config, "CODEX_PARALLEL_LIMIT", 5)
+    monkeypatch.setattr(config, "CODEX_PER_POI_TIMEOUT_SECONDS", 5)
+    monkeypatch.setattr(config, "CODEX_SECONDS_PER_POI_SCALING", 1)
+    monkeypatch.setattr(config, "CODEX_SEARCH_MAX_RETRIES", 0)
+    monkeypatch.setattr(config, "TRANSFORM_PARALLEL_LIMIT", 3)
+    monkeypatch.setattr(config, "TRANSFORM_PER_POI_TIMEOUT_SECONDS", 5)
+    return session_dir
+
+
+def _make_fake_state():
+    return type("S", (), {
+        "status": "active",
+        "session_id": "test-session",
+        "trip_id": "test-trip",
+    })()
+
+
 class TestInitialProgress:
     def test_search_pois_emits_progress_zero(self, spy_ctx, monkeypatch, tmp_path):
         import json
@@ -157,8 +180,9 @@ class TestInitialProgress:
         })()
 
         monkeypatch.setattr(WorkflowState, "load", lambda sid: fake_state)
-        monkeypatch.setattr(server, "_search_pois_parallel", AsyncMock(return_value=("raw", [])))
-        monkeypatch.setattr(server, "_run_claude_transform", AsyncMock(return_value={"candidates": []}))
+        monkeypatch.setattr(server, "_search_pois_parallel", AsyncMock(
+            return_value=({"destination": "Test", "candidates": []}, [])
+        ))
         monkeypatch.setattr(server, "validation", type("V", (), {
             "validate_schema": staticmethod(lambda *a: [])
         })())
@@ -175,21 +199,14 @@ class TestInitialProgress:
         assert len(progress_calls) >= 1
         first = progress_calls[0]
         assert first.kwargs.get("progress", first.args[0] if first.args else None) == 0
-        assert first.kwargs.get("total", first.args[1] if len(first.args) > 1 else None) == 5
+        assert first.kwargs.get("total", first.args[1] if len(first.args) > 1 else None) == 4
 
 
 class TestParallelPOISearch:
     def test_partial_failure_continues(self, monkeypatch, tmp_path):
-        import json
+        from mcp_server import server
 
-        from mcp_server import config, server
-        from mcp_server.workflow import WorkflowState
-
-        session_dir = tmp_path / "test-session"
-        session_dir.mkdir()
-        monkeypatch.setattr(config, "session_dir", lambda sid: session_dir)
-        monkeypatch.setattr(config, "CODEX_PARALLEL_LIMIT", 5)
-        monkeypatch.setattr(config, "CODEX_PER_POI_TIMEOUT_SECONDS", 5)
+        session_dir = _patch_parallel_config(monkeypatch, tmp_path)
 
         call_count = 0
 
@@ -200,36 +217,36 @@ class TestParallelPOISearch:
                 raise server.SearchError("timeout")
             return f"raw data for POI {call_count}"
 
+        async def fake_transform(prompt, schema_path, timeout=None):
+            return {
+                "name_en": "Test",
+                "style": "landmark",
+                "address": "123 Test St",
+                "duration_minutes": 60,
+                "description": "A test POI",
+            }
+
         monkeypatch.setattr(server, "_run_codex_search", fake_codex)
-
-        fake_state = type("S", (), {
-            "status": "active",
-            "session_id": "test-session",
-            "trip_id": "test-trip",
-        })()
-
+        monkeypatch.setattr(server, "_run_claude_transform", fake_transform)
         monkeypatch.setattr(server, "_load_trip_prefs", lambda tid: {
             "destination": "Test City",
         })
         monkeypatch.setattr(server, "_load_merged_profile_from_prefs", lambda tid, prefs: {})
 
+        fake_state = _make_fake_state()
         poi_list = [{"name_en": f"POI {i}"} for i in range(5)]
-        merged_raw, failures = _run_async(
+        result, failures = _run_async(
             server._search_pois_parallel(fake_state, poi_list)
         )
 
-        assert len(failures) == 2
-        assert "raw data" in merged_raw
+        search_failures = [f for f in failures if "timeout" in f.get("error", "")]
+        assert len(search_failures) == 2
+        assert len(result["candidates"]) == 3
 
     def test_majority_failure_raises(self, monkeypatch, tmp_path):
-        from mcp_server import config, server
-        from mcp_server.workflow import WorkflowState
+        from mcp_server import server
 
-        session_dir = tmp_path / "test-session"
-        session_dir.mkdir()
-        monkeypatch.setattr(config, "session_dir", lambda sid: session_dir)
-        monkeypatch.setattr(config, "CODEX_PARALLEL_LIMIT", 5)
-        monkeypatch.setattr(config, "CODEX_PER_POI_TIMEOUT_SECONDS", 5)
+        _patch_parallel_config(monkeypatch, tmp_path)
 
         call_count = 0
 
@@ -246,12 +263,7 @@ class TestParallelPOISearch:
         })
         monkeypatch.setattr(server, "_load_merged_profile_from_prefs", lambda tid, prefs: {})
 
-        fake_state = type("S", (), {
-            "status": "active",
-            "session_id": "test-session",
-            "trip_id": "test-trip",
-        })()
-
+        fake_state = _make_fake_state()
         poi_list = [{"name_en": f"POI {i}"} for i in range(5)]
         with pytest.raises(server.SearchError, match="Majority"):
             _run_async(server._search_pois_parallel(fake_state, poi_list))
@@ -259,35 +271,72 @@ class TestParallelPOISearch:
     def test_progress_file_updated(self, monkeypatch, tmp_path):
         import json
 
-        from mcp_server import config, server
+        from mcp_server import server
 
-        session_dir = tmp_path / "test-session"
-        session_dir.mkdir()
-        monkeypatch.setattr(config, "session_dir", lambda sid: session_dir)
-        monkeypatch.setattr(config, "CODEX_PARALLEL_LIMIT", 5)
-        monkeypatch.setattr(config, "CODEX_PER_POI_TIMEOUT_SECONDS", 5)
+        session_dir = _patch_parallel_config(monkeypatch, tmp_path)
 
         async def fake_codex(prompt, ctx=None, timeout=None):
             return "raw data"
 
+        async def fake_transform(prompt, schema_path, timeout=None):
+            return {
+                "name_en": "Test",
+                "style": "landmark",
+                "address": "123 Test St",
+                "duration_minutes": 60,
+                "description": "A test POI",
+            }
+
         monkeypatch.setattr(server, "_run_codex_search", fake_codex)
+        monkeypatch.setattr(server, "_run_claude_transform", fake_transform)
         monkeypatch.setattr(server, "_load_trip_prefs", lambda tid: {
             "destination": "Test City",
         })
         monkeypatch.setattr(server, "_load_merged_profile_from_prefs", lambda tid, prefs: {})
 
-        fake_state = type("S", (), {
-            "status": "active",
-            "session_id": "test-session",
-            "trip_id": "test-trip",
-        })()
-
+        fake_state = _make_fake_state()
         poi_list = [{"name_en": f"POI {i}"} for i in range(3)]
         _run_async(server._search_pois_parallel(fake_state, poi_list))
 
         progress_path = session_dir / "poi-search-progress.json"
         assert progress_path.exists()
         progress = json.loads(progress_path.read_text())
-        assert progress["phase"] == "searching"
-        assert progress["completed"] == 3
+        assert progress["phase"] == "transforming"
         assert progress["total"] == 3
+
+
+class TestSanitizePoiFilename:
+    def test_basic_name(self):
+        from mcp_server.server import _sanitize_poi_filename
+        result = _sanitize_poi_filename("Bixby Bridge")
+        assert result.startswith("bixby-bridge-")
+        assert len(result) <= 87
+
+    def test_unicode_name(self):
+        from mcp_server.server import _sanitize_poi_filename
+        result = _sanitize_poi_filename("金门大桥")
+        assert len(result) == 6
+
+    def test_long_name_truncated(self):
+        from mcp_server.server import _sanitize_poi_filename
+        long_name = "a" * 200
+        result = _sanitize_poi_filename(long_name)
+        assert len(result) <= 87
+
+
+class TestMergePoiTransforms:
+    def test_merge_filters_failures(self):
+        from mcp_server.server import _merge_poi_transforms
+        results = [
+            {"name_en": "A", "status": "complete", "candidate": {"name_en": "A", "style": "food", "address": "1 St", "duration_minutes": 30, "description": "Good"}},
+            {"name_en": "B", "status": "failed", "error": "timeout"},
+            {"name_en": "C", "status": "complete", "candidate": {"name_en": "C", "style": "nature", "address": "2 St", "duration_minutes": 60, "description": "Nice"}},
+        ]
+        merged = _merge_poi_transforms("Test City", results)
+        assert merged["destination"] == "Test City"
+        assert len(merged["candidates"]) == 2
+
+    def test_merge_empty(self):
+        from mcp_server.server import _merge_poi_transforms
+        merged = _merge_poi_transforms("Test", [])
+        assert merged["candidates"] == []

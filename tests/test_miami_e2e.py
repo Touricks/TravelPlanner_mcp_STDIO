@@ -84,13 +84,27 @@ def mcp_env(tmp_path, monkeypatch):
 @pytest.fixture
 def mock_search(monkeypatch):
     """Mock codex exec + claude -p transform with Miami fixture data."""
+    from mcp_server import config
     from tests.fixtures import MIAMI_HOTELS, MIAMI_POI_CANDIDATES, MIAMI_RESTAURANTS
+
+    poi_transform_idx = 0
+
+    monkeypatch.setattr(config, "CODEX_SEARCH_MAX_RETRIES", 0)
+    monkeypatch.setattr(config, "CODEX_SECONDS_PER_POI_SCALING", 1)
+    monkeypatch.setattr(config, "TRANSFORM_PARALLEL_LIMIT", 3)
+    monkeypatch.setattr(config, "TRANSFORM_PER_POI_TIMEOUT_SECONDS", 5)
 
     async def fake_codex_search(prompt, ctx=None, **kwargs):
         return "mock codex search results"
 
-    async def fake_transform(transform_prompt, schema_path):
+    async def fake_transform(transform_prompt, schema_path, timeout=None):
+        nonlocal poi_transform_idx
         stage = schema_path.stem
+        if stage == "poi-candidate-single":
+            candidates = MIAMI_POI_CANDIDATES["candidates"]
+            candidate = candidates[poi_transform_idx % len(candidates)]
+            poi_transform_idx += 1
+            return candidate
         return {
             "poi-candidates": MIAMI_POI_CANDIDATES,
             "poi-names": {

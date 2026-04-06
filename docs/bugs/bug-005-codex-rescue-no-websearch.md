@@ -104,15 +104,19 @@ tools: WebSearch, Read
 
 But this is likely unnecessary given the existing `_run_claude_search` subprocess handles search well.
 
-## Recommended Priority
+## Resolution (2026-04-06)
 
-**Fix A now** — correct 3 doc files to match reality. The actual search functionality works fine via `_run_claude_search`; only the documentation is wrong about which component does it.
+**Status: Resolved (docs-only fix applied in bugfix3+4).**
 
-## Files Involved
+The doc fixes from Fix A were applied in commit `42409ba`: CLAUDE.md, tool-boundary.md, and PRD.md no longer claim `codex:rescue` can do search enrichment.
 
-| File | Line | Issue |
-|------|------|-------|
-| `CLAUDE.md` | 51 | Claims codex:rescue does "search enrichment" |
-| `.claude/rules/tool-boundary.md` | 28-29 | Claims codex:rescue does "search enrichment (Stage 2/4/5)" |
-| `PRD.md` | 44 | Claims "WebSearch + Codex" for POI search |
-| `review/codex_review.py` | 34 | Only place codex is actually invoked — review only, no search |
+The code path is correct: `_run_codex_search` uses raw `codex exec` (not `codex:rescue`), which has WebSearch available by default. Confirmed in ARCHITECTURE.md and bug-006 notes. The bugfix3+4 log (line 82) incorrectly extended BUG-005 to claim `codex exec` also lacks WebSearch — that claim is wrong and should be disregarded.
+
+## Files Involved (historical)
+
+| File | Line | Issue | Status |
+|------|------|-------|--------|
+| `CLAUDE.md` | 51 | Claimed codex:rescue does "search enrichment" | Fixed |
+| `.claude/rules/tool-boundary.md` | 28-29 | Claimed codex:rescue does "search enrichment (Stage 2/4/5)" | Fixed |
+| `PRD.md` | 44 | Claimed "WebSearch + Codex" for POI search | Fixed |
+| `review/codex_review.py` | 34 | Only place codex is actually invoked — review only, no search | No change needed |

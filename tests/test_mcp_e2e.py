@@ -69,16 +69,29 @@ MOCK_CTX = _MockContext()
 @pytest.fixture
 def mock_search(monkeypatch):
     """Mock _run_codex_search and _run_claude_transform with canned artifacts."""
+    from mcp_server import config
     from tests.fixtures import SAMPLE_HOTELS, SAMPLE_POI_CANDIDATES, SAMPLE_RESTAURANTS
 
     call_log = []
+    poi_transform_idx = 0
+
+    monkeypatch.setattr(config, "CODEX_SEARCH_MAX_RETRIES", 0)
+    monkeypatch.setattr(config, "CODEX_SECONDS_PER_POI_SCALING", 1)
+    monkeypatch.setattr(config, "TRANSFORM_PARALLEL_LIMIT", 3)
+    monkeypatch.setattr(config, "TRANSFORM_PER_POI_TIMEOUT_SECONDS", 5)
 
     async def fake_codex_search(prompt, ctx=None, **kwargs):
         return "mock codex search results"
 
-    async def fake_transform(transform_prompt, schema_path):
+    async def fake_transform(transform_prompt, schema_path, timeout=None):
+        nonlocal poi_transform_idx
         stage = schema_path.stem
         call_log.append(stage)
+        if stage == "poi-candidate-single":
+            candidates = SAMPLE_POI_CANDIDATES["candidates"]
+            candidate = candidates[poi_transform_idx % len(candidates)]
+            poi_transform_idx += 1
+            return candidate
         data = {
             "poi-candidates": SAMPLE_POI_CANDIDATES,
             "poi-names": {
@@ -227,7 +240,7 @@ class TestMCPWorkflowE2E:
         assert expected_stages.issubset(set(status["completed_stages"]))
 
         # Verify search mock was called correctly
-        assert "poi-candidates" in mock_search
+        assert "poi-candidate-single" in mock_search
         assert "restaurants" in mock_search
         assert "hotels" in mock_search
 

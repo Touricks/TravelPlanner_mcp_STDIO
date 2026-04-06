@@ -377,3 +377,33 @@ entries:
     confidence: high
     promotion_targets:
     - ARCHITECTURE.md
+- date: '2026-04-06'
+  title: 'feat8: Live E2E test kit for MCP workflow'
+  status: unprocessed
+  session_report: docs/logs/feat/feat8_live_e2e_testkit_20260406.md
+  next_steps:
+  - Run the live E2E test locally to validate full workflow with real codex/claude
+  - Configure ANTHROPIC_API_KEY secret in GitHub repo for CI workflow
+  - Correct CI workflow — live test depends on codex/claude CLI, not API key env var
+  - Consider adding a smoke-only mode that tests server startup + list_trips without search
+  candidates:
+  - id: cand-2026-04-06-sys-executable-for-mcp-server
+    type: rule
+    text: MCP server test fixtures must use sys.executable instead of hardcoded venv
+      paths. Hardcoded .venv-mcp/bin/python3 breaks in worktrees and CI where the
+      venv is at a different path relative to the test.
+    scope: module
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-06-live-e2e-marker-exclusion
+    type: rule
+    text: Tests requiring real codex/claude CLI subprocesses use @pytest.mark.live_e2e
+      marker. Fast CI excludes them with -m "not live_e2e". Separate ci-live-e2e.yml
+      workflow runs them weekly or on manual dispatch.
+    scope: global
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md

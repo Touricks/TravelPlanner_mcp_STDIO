@@ -1,0 +1,379 @@
+schema_version: 1
+entries:
+- date: '2026-04-02'
+  title: Project initialized
+  status: absorbed
+  session_report: ''
+  next_steps:
+  - Run /routing to select project tools
+  - Implement profile/ module (profile.yaml CRUD with merge semantics)
+  - Define guardrails.yaml with hard/soft rule schema
+  - Define stage contract schemas in assets/configs/contracts/
+  - Build pipeline runner (stage orchestration with contract validation)
+  candidates: []
+- date: '2026-04-02'
+  title: Full pipeline implementation — Sprint 1-3
+  status: absorbed
+  session_report: docs/sessions/2026-04-02-full-pipeline-implementation-sprint-1-3.md
+  next_steps:
+  - Run pipeline/run.sh against SF trip with claude -p to validate end-to-end
+  - Test Notion publishing (Stage 6) with real Notion MCP
+  - Test screenshot verification (Stage 7) with Playwright
+  - Add Codex CLI integration test for Stage 5 soft review
+  - Extend profile.yaml with actual user data (travel_pace, wishlist)
+  candidates:
+  - id: cand-2026-04-02-python-39-type-hint
+    type: rule
+    text: Use `from __future__ import annotations` and `Optional[X]` instead of `X
+      | None` — system Python is 3.9
+    scope: global
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-02-claude-p-schema-limits
+    type: fact
+    text: 'claude -p --json-schema enforces output conformance at API level. Limits:
+      ≤20 strict tools/request, ≤24 optional params across all strict schemas, ≤16
+      anyOf unions. Each pipeline stage uses 1 schema with max 14 optional params.'
+    subsystem: pipeline
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  - id: cand-2026-04-02-rule-engine-parent-child
+    type: rule
+    text: Time overlap checker must suppress parent-child relationships via parent_item_index.
+      Nested activities are intentional overlaps, not violations.
+    scope: module
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-02-guardrails-belt-suspenders
+    type: fact
+    text: 'Guardrails use belt-and-suspenders: constraints in LLM prompt (Stage 3)
+      for generation-time awareness, validated post-hoc by Python rule engine (Stage
+      5) as hard gate.'
+    subsystem: rules
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+- date: '2026-04-02'
+  title: Pipeline E2E execution — SF trip stages 2-6
+  status: active
+  session_report: docs/sessions/2026-04-02-pipeline-e2e-execution.md
+  next_steps:
+  - Stage 7 screenshot verification with Playwright MCP
+  - Fix codex_review.py to use `codex exec` instead of `codex -q` (CLI v0.118.0 API
+    change)
+  - Add meal items to itinerary.json to resolve soft meal_coverage warnings
+  - Address Codex advisory: rebalance Day 2 (6 POIs) and Day 5 (6 POIs)
+  - Address Codex advisory: Day 6 LA→Sequoia is transit-heavy, consider pre-positioning
+  candidates:
+  - id: cand-2026-04-02-codex-exec-api
+    type: fact
+    text: Codex CLI v0.118.0 uses `codex exec` for non-interactive mode, not `codex
+      -q`. Requires --skip-git-repo-check outside git repos.
+    subsystem: review
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  - id: cand-2026-04-02-claude-p-perf
+    type: fact
+    text: 'claude -p --json-schema is too slow for large structured outputs (15+ min
+      for 33-item itinerary). Fallback: generate artifacts directly in-session or
+      via Python transform, use Codex for web search.'
+    subsystem: pipeline
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+- date: '2026-04-02'
+  title: Fix Codex review + reduce over-packed POIs
+  status: absorbed
+  session_report: docs/sessions/2026-04-02-fix-codex-review-reduce-pois.md
+  next_steps:
+  - Stage 7 screenshot verification with Playwright MCP
+  - Republish Notion Itinerary database (5 stale dropped-POI entries remain)
+  - Add Codex review integration test covering codex exec invocation
+  - Resolve remaining Codex flags (Day 9 SF route ordering, Day 5 hotel mismatch)
+  candidates:
+  - id: cand-2026-04-02-codex-exec-invocation
+    type: rule
+    text: Codex CLI invocations must use `codex exec --skip-git-repo-check` for non-interactive
+      mode. Parse stdout by extracting the last valid JSON array — codex duplicates
+      output with session metadata.
+    scope: module
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-02-codex-review-loop
+    type: fact
+    text: Codex review catches restaurant/hotel proximity mismatches that the rule
+      engine cannot detect (rule engine only checks time constraints). Running Codex
+      after itinerary changes is necessary to catch cascading mismatches in restaurants.json.
+    subsystem: review
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  absorbed_to: CLAUDE.md/ARCHITECTURE.md
+- date: '2026-04-03'
+  title: MCP server + prototype decomposition + session/search refactor
+  status: absorbed
+  session_report: docs/sessions/2026-04-03-mcp-server-prototype-decomposition-session-search-refactor.md
+  next_steps:
+  - E2E test search_pois with real claude -p subprocess
+  - Update PRD.md with MCP server + session ID requirements
+  - Test concurrent sessions (start two trips simultaneously)
+  - Update README.md for session_id API changes
+  candidates:
+  - id: cand-2026-04-03-session-id-primary-key
+    type: rule
+    text: All MCP tools use session_id (not trip_id) as primary key. start_trip returns
+      session_id; artifacts stored in sessions/{session_id}/. Backward compat - WorkflowState.load()
+      resolves trip_id via scan.
+    scope: global
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-03-server-side-websearch
+    type: rule
+    text: Agent does NOT use WebSearch directly. Search stages (poi_search, restaurants,
+      hotels) use server-side tools (search_pois, search_restaurants, search_hotels)
+      that run claude -p subprocess with --allowedTools WebSearch.
+    scope: global
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-03-session-scoped-artifacts
+    type: rule
+    text: Search results and workflow artifacts are session-scoped in sessions/{session_id}/,
+      NOT in assets/data/. assets/data/ is reserved for legacy pipeline/run.sh only.
+    scope: global
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-03-claude-cli-autodetect
+    type: fact
+    text: MCP server auto-detects claude CLI at startup by checking PATH, ~/.local/bin/claude,
+      /usr/local/bin/claude, /opt/homebrew/bin/claude. Cached after first call. Required
+      for server-side search tools.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  - id: cand-2026-04-03-mcp-server-15-tools
+    type: fact
+    text: MCP server has 15 tools (12 workflow + 3 async search), 7 resources (URIs
+      use travel://session/{session_id}/...), 1 prompt (plan_trip). Search tools use
+      asyncio.create_subprocess_exec with 600s timeout.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  absorbed_to: CLAUDE.md/ARCHITECTURE.md
+- date: '2026-04-03'
+  title: Conditional profile elicitation workflow
+  status: absorbed
+  session_report: docs/sessions/2026-04-03-conditional-profile-elicitation-workflow.md
+  next_steps:
+  - E2E test profile_collection with plan_trip MCP prompt (new user path)
+  - E2E test profile_collection skip (existing complete profile)
+  - Update ARCHITECTURE.md tools table (15 → 16) and workflow state machine diagram
+  - Update CLAUDE.md MCP Server section with complete_profile_collection + profile_collection
+    stage
+  - Add destination regions to destination-questions.yaml as new trips are planned
+  candidates:
+  - id: cand-2026-04-03-workflow-state-instance-stages
+    type: fact
+    text: WorkflowState.stages is now an instance-level list serialized in workflow-state.json.
+      advance() and regress_to() use self.stages, not the module-level STAGES constant.
+      from_dict normalizes legacy sessions without a stages key by falling back to
+      default STAGES.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  - id: cand-2026-04-03-profile-collection-conditional-stage
+    type: fact
+    text: profile_collection is dynamically prepended to the per-session stages list
+      when check_profile_completeness returns incomplete. It uses three-layer interaction
+      (agent dialogue + structured questionnaire + destination-aware questions) and
+      is the only stage where the agent talks to the user. complete_profile_collection
+      validates before advancing.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  - id: cand-2026-04-03-update-profile-safe-loading
+    type: rule
+    text: update_profile uses load_profile_safe (returns {} on missing/invalid) +
+      validate_profile_structure (checks structure of present sections only, not required
+      section presence) to support incremental profile building during profile_collection
+      stage.
+    scope: module
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-03-mcp-server-16-tools
+    type: fact
+    text: MCP server now has 16 tools (added complete_profile_collection). Tool count
+      in ARCHITECTURE.md and CLAUDE.md should be updated from 15 to 16.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  absorbed_to: CLAUDE.md/ARCHITECTURE.md
+- date: '2026-04-03'
+  title: Delete legacy pipeline, consolidate prompt loader
+  status: absorbed
+  session_report: ''
+  next_steps:
+  - Update docs/progress/code-structure.md to reflect pipeline/ removal
+  - Update ARCHITECTURE.md module structure table (remove pipeline/ row)
+  - Consider adding pyproject.toml for proper packaging in future
+  candidates:
+  - id: cand-2026-04-03-prompt-loader-in-mcp-server
+    type: fact
+    text: Prompt loading function (load_prompt) moved from pipeline/stages/stage_prompts.py
+      to mcp_server/prompt_loader.py. pipeline/ directory deleted entirely (run.sh
+      was dead code, stage_prompts.py was the only live dependency). Three import
+      sites updated — mcp_server/server.py (2x) and review/codex_review.py (1x).
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  - id: cand-2026-04-03-src-restructure-not-recommended
+    type: rule
+    text: Do not move code into src/ without first adding pyproject.toml and editable
+      install. Current import resolution relies on sys.path.insert and PYTHONPATH
+      in .mcp.json pointing to repo root. src/ would break PROJECT_ROOT derivation,
+      MCP startup, test discovery, and tripdb CLI.
+    scope: incident-only
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  absorbed_to: CLAUDE.md/ARCHITECTURE.md
+- date: '2026-04-05'
+  title: 'BUG-003/004/005: search progress notifications, fork bomb guard, doc corrections'
+  status: absorbed
+  session_report: docs/sessions/2026-04-05-bug-003-004-005-search-progress-fork-bomb-doc-corrections.md
+  next_steps:
+  - Merge BUG-004 worktree (bugfix4_fork-bomb-guard_20260405160124) and push
+  - Investigate what /call-codex (sentinel:call-codex) invokes under the hood — needed
+    to fix _run_codex_search (BUG-005 code fix)
+  - Replace codex exec in _run_codex_search with correct /call-codex invocation once
+    understood
+  - Verify --bare flag exists on installed claude CLI (never tested at runtime)
+  candidates:
+  - id: cand-2026-04-05-subprocess-isolation-three-layers
+    type: rule
+    text: All subprocess spawns (claude -p, codex exec) must use three-layer defense
+      — (1) cwd=tempfile.mkdtemp() per spawn, (2) _TRAVEL_PLANNER_SUBPROCESS env var
+      recursion guard, (3) --bare on claude -p. Never spawn subprocesses in PROJECT_ROOT
+      where .mcp.json lives.
+    scope: global
+    confidence: high
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-05-codex-exec-no-websearch
+    type: fact
+    text: codex exec (used by codex:rescue and review/codex_review.py) has tools allowlist
+      of {Bash} only. WebSearch is structurally impossible. Search discovery must
+      use /call-codex (sentinel:call-codex), not codex exec.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  - id: cand-2026-04-05-search-transform-split
+    type: fact
+    text: Search tools use two-phase architecture — /call-codex for web search discovery
+      (returns raw text), then claude -p --bare --json-schema for structured transformation.
+      Search prompts must demand all grounded fields (bilingual names, coordinates,
+      hours, source URLs) so transform does not hallucinate.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  absorbed_to: CLAUDE.md/ARCHITECTURE.md
+- date: '2026-04-06'
+  title: 'feat5: Parallelize POI search with discover_poi_names + per-POI codex calls'
+  status: absorbed
+  session_report: docs/logs/feat/feat5_parallel_poi_search_20260406.md
+  next_steps:
+  - E2E test discover_poi_names + search_pois with real codex subprocess against a
+    live trip
+  - Tune CODEX_PER_POI_TIMEOUT_SECONDS (60s default may be conservative for complex
+    POIs)
+  - Consider applying same parallel pattern to search_restaurants and search_hotels
+  - Update ARCHITECTURE.md tool count (18 → 19 tools, 7 → 9 resources)
+  candidates:
+  - id: cand-2026-04-06-mcp-server-19-tools-9-resources
+    type: fact
+    text: MCP server has 19 tools (added discover_poi_names) and 9 resources (added
+      travel://session/{session_id}/poi-names and travel://session/{session_id}/poi-search-progress).
+      discover_poi_names is a lightweight tool (~10s, no web search) that the agent
+      calls before search_pois.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  - id: cand-2026-04-06-parallel-codex-semaphore-pattern
+    type: fact
+    text: Server-side search parallelism uses asyncio.Semaphore(CODEX_PARALLEL_LIMIT)
+      with asyncio.as_completed() for per-POI codex calls. Individual task failures
+      catch Exception (not just SearchError) to prevent one subprocess crash from
+      aborting all parallel tasks. Majority threshold (>=50% success) gates progression.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  absorbed_to: CLAUDE.md/ARCHITECTURE.md
+- date: '2026-04-06'
+  title: 'feat7: Per-POI file isolation for search and transform pipeline'
+  status: unprocessed
+  session_report: docs/logs/feat/feat7_per_poi_pipeline_20260406.md
+  next_steps:
+  - Build live E2E test kit that drives full MCP workflow with real codex/claude
+    subprocesses (feat8)
+  - Apply per-POI pattern to search_restaurants and search_hotels if POI pipeline
+    proves stable in production
+  - Implement crash recovery — resume from persisted poi-raw/ files on restart
+  - Update ARCHITECTURE.md tool count and search architecture description
+  candidates:
+  - id: cand-2026-04-06-per-poi-two-phase-fanout
+    type: fact
+    text: POI search uses two-phase fan-out — Phase 1 parallel codex search (sem=5)
+      writes per-POI raw files to sessions/{sid}/poi-raw/, majority gate (>=50%),
+      then Phase 2 parallel claude transform (sem=3) writes structured JSON to
+      sessions/{sid}/poi-transforms/. Final merge produces poi-candidates.json
+      (unchanged downstream schema).
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md
+  - id: cand-2026-04-06-per-poi-retry-backoff
+    type: rule
+    text: Per-POI search retries once on SearchError with exponential backoff (1s, 2s).
+      Per-POI transform retries once on any exception. Retry reads from persisted
+      raw file, so no wasted search work on transform retry.
+    scope: module
+    confidence: med
+    needs_approval: true
+    promotion_targets:
+    - CLAUDE.md
+  - id: cand-2026-04-06-separate-transform-semaphore
+    type: fact
+    text: Search and transform use separate semaphores — CODEX_PARALLEL_LIMIT (default 5)
+      for codex exec processes, TRANSFORM_PARALLEL_LIMIT (default 3) for claude -p
+      processes. Claude processes are heavier, so lower concurrency limit.
+    subsystem: mcp_server
+    confidence: high
+    promotion_targets:
+    - ARCHITECTURE.md

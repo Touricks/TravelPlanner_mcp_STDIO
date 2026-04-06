@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+markers = [
+    "live_e2e: requires real codex/claude API access (slow, non-deterministic)",
+]

@@ -30,7 +30,7 @@ def server_params():
     env = os.environ.copy()
     env["PYTHONPATH"] = str(PROJECT_ROOT)
     return StdioServerParameters(
-        command=str(PROJECT_ROOT / ".venv-mcp" / "bin" / "python3"),
+        command=sys.executable,
         args=["-m", "mcp_server.server"],
         cwd=str(PROJECT_ROOT),
         env=env,
@@ -62,6 +62,7 @@ class NotificationCollector:
         print(f"  [PROGRESS {progress}/{total}] {message}")
 
 
+@pytest.mark.live_e2e
 class TestNotificationDelivery:
     def test_list_trips_sends_no_crash(self, server_params):
         """Baseline: connect, call a fast tool, verify no crash."""

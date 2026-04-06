@@ -1,14 +1,14 @@
-name: CI
+name: Live E2E
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
 
 jobs:
-  test:
+  live-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,10 @@ jobs:
           source .venv-mcp/bin/activate
           pip install -r requirements-mcp-dev.txt
 
-      - name: Run tests
+      - name: Run live E2E
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           source .venv-mcp/bin/activate
-          python -m pytest tests/ -v --tb=short -m "not live_e2e"
+          python -m pytest tests/test_live_workflow_e2e.py -v -s \
+            --timeout=1800 -m live_e2e

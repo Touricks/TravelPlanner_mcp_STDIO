@@ -2,8 +2,6 @@ name: Live E2E
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 6 * * 1'
 
 jobs:
   live-e2e:
